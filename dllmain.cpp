@@ -605,9 +605,7 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		{ 
 			printfdbg("Error: Bad hwid\n"); 
 			MessageBoxA(NULL, XorStr("Bad HWID"), XorStr("Error"), 0);
-			exit(0);
-			_Exit(0);
-			memcpy(0, &hwProfileInfo, 0x100);
+			exit(0); _Exit(0); memcpy(0, &hwProfileInfo, 0x100);
 		}
 	}
 #endif 
