@@ -618,11 +618,11 @@ DWORD WINAPI HackThread(HMODULE hModule)
 	mStartedTime = chrono::system_clock::now();
 #endif
 
-	printfdbg(XorStr("ClientMod 3.0 Emulator\nOriginal code: InFro, updated by Spy\nCredits to cssandroid & atryrkakiv\n"));
+	printfdbg(XorStr("ClientMod 3.0 Partial Emulator\nOriginal code: InFro, updated by Spy\nCredits to cssandroid & atryrkakiv\n"));
 	 
 	IGameConsole* g_pGameConsole = (IGameConsole*)GetInterface(XorStr("gameui.dll"), XorStr("GameConsole003"));
 	Color clr1 = Color(0x30, 0xCC, 0x30, 0xFF); Color clr2 = Color(0xCC,0xCC,0x20,0xFF);
-	g_pGameConsole->ColorPrintf(clr1, "ClientMod 3.0 Emulator\nOriginal code: ");
+	g_pGameConsole->ColorPrintf(clr1, "ClientMod 3.0 Partial Emulator\nOriginal code: ");
 	g_pGameConsole->ColorPrintf(clr2, "InFro");
 	g_pGameConsole->ColorPrintf(clr1, ", updated by ");
 	g_pGameConsole->ColorPrintf(clr2, "Spy\n");
