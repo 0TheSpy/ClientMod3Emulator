@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>16.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{8039c592-9813-4dcd-8051-3155769917da}</ProjectGuid>
+    <RootNamespace>CMemul1</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>CM3Emul</ProjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+    <IncludePath>hl2sdk\public;hl2sdk\common;hl2sdk\public\tier0;hl2sdk\public\tier1;hl2sdk\tier0;hl2sdk\tier1;hl2sdk\vgui2\vgui_controls;hl2sdk\game\shared;hl2sdk\game\client\hl2;hl2sdk\game\shared\hl2mp;hl2sdk\game\client;hl2sdk\public\mathlib;K:\Cheats\my CM3 cheats\CMemul2\zlib-1.2.13;$(IncludePath)</IncludePath>
+    <LibraryPath>hl2sdk\;hl2sdk\lib;$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;_DEBUG;CMEMUL1_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableUAC>false</EnableUAC>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;NDEBUG;CMEMUL1_EXPORTS;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>false</ConformanceMode>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <AdditionalOptions>
+      </AdditionalOptions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <EnableUAC>false</EnableUAC>
+      <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_DEBUG;CMEMUL1_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableUAC>false</EnableUAC>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>NDEBUG;CMEMUL1_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableUAC>false</EnableUAC>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="dllmain.cpp" />
+    <ClCompile Include="Public\Encryption\CRijndael.cpp" />
+    <ClCompile Include="Public\Encryption\DoubleBuffering.cpp" />
+    <ClCompile Include="Public\Encryption\MessageDigest.cpp" />
+    <ClCompile Include="Public\Encryption\SHA.cpp" />
+    <ClCompile Include="Public\ExternIP.cpp" />
+    <ClCompile Include="Public\RevSpoofer.cpp" />
+    <ClCompile Include="Public\StrUtils.cpp" />
+    <ClCompile Include="zlib-1.2.13\adler32.c" />
+    <ClCompile Include="zlib-1.2.13\compress.c" />
+    <ClCompile Include="zlib-1.2.13\crc32.c" />
+    <ClCompile Include="zlib-1.2.13\deflate.c" />
+    <ClCompile Include="zlib-1.2.13\gzclose.c" />
+    <ClCompile Include="zlib-1.2.13\gzlib.c" />
+    <ClCompile Include="zlib-1.2.13\gzread.c" />
+    <ClCompile Include="zlib-1.2.13\gzwrite.c" />
+    <ClCompile Include="zlib-1.2.13\infback.c" />
+    <ClCompile Include="zlib-1.2.13\inffast.c" />
+    <ClCompile Include="zlib-1.2.13\inflate.c" />
+    <ClCompile Include="zlib-1.2.13\inftrees.c" />
+    <ClCompile Include="zlib-1.2.13\trees.c" />
+    <ClCompile Include="zlib-1.2.13\uncompr.c" />
+    <ClCompile Include="zlib-1.2.13\zutil.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="tier0.dll" />
+    <None Include="zlib-1.2.13\ChangeLog" />
+    <None Include="zlib-1.2.13\configure" />
+    <None Include="zlib-1.2.13\FAQ" />
+    <None Include="zlib-1.2.13\INDEX" />
+    <None Include="zlib-1.2.13\LICENSE" />
+    <None Include="zlib-1.2.13\Makefile" />
+    <None Include="zlib-1.2.13\Makefile.in" />
+    <None Include="zlib-1.2.13\make_vms.com" />
+    <None Include="zlib-1.2.13\README" />
+    <None Include="zlib-1.2.13\zconf.h.cmakein" />
+    <None Include="zlib-1.2.13\zconf.h.in" />
+    <None Include="zlib-1.2.13\zlib.3" />
+    <None Include="zlib-1.2.13\zlib.3.pdf" />
+    <None Include="zlib-1.2.13\zlib.map" />
+    <None Include="zlib-1.2.13\zlib.pc.cmakein" />
+    <None Include="zlib-1.2.13\zlib.pc.in" />
+    <None Include="zlib-1.2.13\zlib2ansi" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Emulators\AVSMP.h" />
+    <ClInclude Include="Emulators\OldRevEmu.h" />
+    <ClInclude Include="Emulators\RevEmu.h" />
+    <ClInclude Include="Emulators\RevEmu2013.h" />
+    <ClInclude Include="Emulators\SC2009.h" />
+    <ClInclude Include="Emulators\Setti.h" />
+    <ClInclude Include="Emulators\SmartSteamEmu.h" />
+    <ClInclude Include="Emulators\SteamEmu.h" />
+    <ClInclude Include="hl2sdk-sdk2013\common\gameui\iGameConsole.h" />
+    <ClInclude Include="Public\Encryption\CRijndael.h" />
+    <ClInclude Include="Public\Encryption\DoubleBuffering.h" />
+    <ClInclude Include="Public\Encryption\MessageDigest.h" />
+    <ClInclude Include="Public\Encryption\SHA.h" />
+    <ClInclude Include="Public\ExternIP.h" />
+    <ClInclude Include="Public\HTTP.h" />
+    <ClInclude Include="Public\RevSpoofer.h" />
+    <ClInclude Include="Public\StrUtils.h" />
+    <ClInclude Include="TimedAccess.h" />
+    <ClInclude Include="XorStr.h" />
+    <ClInclude Include="zlib-1.2.13\crc32.h" />
+    <ClInclude Include="zlib-1.2.13\deflate.h" />
+    <ClInclude Include="zlib-1.2.13\gzguts.h" />
+    <ClInclude Include="zlib-1.2.13\inffast.h" />
+    <ClInclude Include="zlib-1.2.13\inffixed.h" />
+    <ClInclude Include="zlib-1.2.13\inflate.h" />
+    <ClInclude Include="zlib-1.2.13\inftrees.h" />
+    <ClInclude Include="zlib-1.2.13\trees.h" />
+    <ClInclude Include="zlib-1.2.13\zconf.h" />
+    <ClInclude Include="zlib-1.2.13\zlib.h" />
+    <ClInclude Include="zlib-1.2.13\zutil.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="zlib-1.2.13\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Xml Include="zlib-1.2.13\treebuild.xml" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

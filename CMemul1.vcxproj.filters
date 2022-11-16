@@ -1,0 +1,261 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Header Files\Emulators">
+      <UniqueIdentifier>{4641320c-ba58-49d1-9478-012a411e9207}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Public">
+      <UniqueIdentifier>{b1706dda-4652-4798-8f9f-ccde2e9fb1cd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Public\Encryption">
+      <UniqueIdentifier>{2e7aa7ab-2f0e-4255-a41c-3887f277d22a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\SDK">
+      <UniqueIdentifier>{20151186-3d4d-49a3-af4a-36bf1d968f2e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Public\zlib">
+      <UniqueIdentifier>{1037670d-88e5-4e5b-8e02-1f611a1d04e7}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="dllmain.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Public\ExternIP.cpp">
+      <Filter>Header Files\Public</Filter>
+    </ClCompile>
+    <ClCompile Include="Public\RevSpoofer.cpp">
+      <Filter>Header Files\Public</Filter>
+    </ClCompile>
+    <ClCompile Include="Public\StrUtils.cpp">
+      <Filter>Header Files\Public</Filter>
+    </ClCompile>
+    <ClCompile Include="Public\Encryption\CRijndael.cpp">
+      <Filter>Header Files\Public\Encryption</Filter>
+    </ClCompile>
+    <ClCompile Include="Public\Encryption\DoubleBuffering.cpp">
+      <Filter>Header Files\Public\Encryption</Filter>
+    </ClCompile>
+    <ClCompile Include="Public\Encryption\MessageDigest.cpp">
+      <Filter>Header Files\Public\Encryption</Filter>
+    </ClCompile>
+    <ClCompile Include="Public\Encryption\SHA.cpp">
+      <Filter>Header Files\Public\Encryption</Filter>
+    </ClCompile>
+    <ClCompile Include="zlib-1.2.13\adler32.c">
+      <Filter>Header Files\Public\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="zlib-1.2.13\compress.c">
+      <Filter>Header Files\Public\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="zlib-1.2.13\crc32.c">
+      <Filter>Header Files\Public\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="zlib-1.2.13\deflate.c">
+      <Filter>Header Files\Public\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="zlib-1.2.13\gzclose.c">
+      <Filter>Header Files\Public\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="zlib-1.2.13\gzlib.c">
+      <Filter>Header Files\Public\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="zlib-1.2.13\gzread.c">
+      <Filter>Header Files\Public\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="zlib-1.2.13\gzwrite.c">
+      <Filter>Header Files\Public\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="zlib-1.2.13\infback.c">
+      <Filter>Header Files\Public\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="zlib-1.2.13\inffast.c">
+      <Filter>Header Files\Public\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="zlib-1.2.13\inflate.c">
+      <Filter>Header Files\Public\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="zlib-1.2.13\inftrees.c">
+      <Filter>Header Files\Public\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="zlib-1.2.13\trees.c">
+      <Filter>Header Files\Public\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="zlib-1.2.13\uncompr.c">
+      <Filter>Header Files\Public\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="zlib-1.2.13\zutil.c">
+      <Filter>Header Files\Public\zlib</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="tier0.dll">
+      <Filter>Source Files</Filter>
+    </None>
+    <None Include="zlib-1.2.13\ChangeLog">
+      <Filter>Header Files\Public\zlib</Filter>
+    </None>
+    <None Include="zlib-1.2.13\configure">
+      <Filter>Header Files\Public\zlib</Filter>
+    </None>
+    <None Include="zlib-1.2.13\FAQ">
+      <Filter>Header Files\Public\zlib</Filter>
+    </None>
+    <None Include="zlib-1.2.13\INDEX">
+      <Filter>Header Files\Public\zlib</Filter>
+    </None>
+    <None Include="zlib-1.2.13\LICENSE">
+      <Filter>Header Files\Public\zlib</Filter>
+    </None>
+    <None Include="zlib-1.2.13\make_vms.com">
+      <Filter>Header Files\Public\zlib</Filter>
+    </None>
+    <None Include="zlib-1.2.13\Makefile">
+      <Filter>Header Files\Public\zlib</Filter>
+    </None>
+    <None Include="zlib-1.2.13\Makefile.in">
+      <Filter>Header Files\Public\zlib</Filter>
+    </None>
+    <None Include="zlib-1.2.13\README">
+      <Filter>Header Files\Public\zlib</Filter>
+    </None>
+    <None Include="zlib-1.2.13\zconf.h.cmakein">
+      <Filter>Header Files\Public\zlib</Filter>
+    </None>
+    <None Include="zlib-1.2.13\zconf.h.in">
+      <Filter>Header Files\Public\zlib</Filter>
+    </None>
+    <None Include="zlib-1.2.13\zlib.3">
+      <Filter>Header Files\Public\zlib</Filter>
+    </None>
+    <None Include="zlib-1.2.13\zlib.3.pdf">
+      <Filter>Header Files\Public\zlib</Filter>
+    </None>
+    <None Include="zlib-1.2.13\zlib.map">
+      <Filter>Header Files\Public\zlib</Filter>
+    </None>
+    <None Include="zlib-1.2.13\zlib.pc.cmakein">
+      <Filter>Header Files\Public\zlib</Filter>
+    </None>
+    <None Include="zlib-1.2.13\zlib.pc.in">
+      <Filter>Header Files\Public\zlib</Filter>
+    </None>
+    <None Include="zlib-1.2.13\zlib2ansi">
+      <Filter>Header Files\Public\zlib</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Emulators\AVSMP.h">
+      <Filter>Header Files\Emulators</Filter>
+    </ClInclude>
+    <ClInclude Include="Emulators\OldRevEmu.h">
+      <Filter>Header Files\Emulators</Filter>
+    </ClInclude>
+    <ClInclude Include="Emulators\RevEmu.h">
+      <Filter>Header Files\Emulators</Filter>
+    </ClInclude>
+    <ClInclude Include="Emulators\RevEmu2013.h">
+      <Filter>Header Files\Emulators</Filter>
+    </ClInclude>
+    <ClInclude Include="Emulators\SC2009.h">
+      <Filter>Header Files\Emulators</Filter>
+    </ClInclude>
+    <ClInclude Include="Emulators\Setti.h">
+      <Filter>Header Files\Emulators</Filter>
+    </ClInclude>
+    <ClInclude Include="Emulators\SmartSteamEmu.h">
+      <Filter>Header Files\Emulators</Filter>
+    </ClInclude>
+    <ClInclude Include="Emulators\SteamEmu.h">
+      <Filter>Header Files\Emulators</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\ExternIP.h">
+      <Filter>Header Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\HTTP.h">
+      <Filter>Header Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\RevSpoofer.h">
+      <Filter>Header Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\StrUtils.h">
+      <Filter>Header Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\Encryption\CRijndael.h">
+      <Filter>Header Files\Public\Encryption</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\Encryption\DoubleBuffering.h">
+      <Filter>Header Files\Public\Encryption</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\Encryption\MessageDigest.h">
+      <Filter>Header Files\Public\Encryption</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\Encryption\SHA.h">
+      <Filter>Header Files\Public\Encryption</Filter>
+    </ClInclude>
+    <ClInclude Include="XorStr.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="hl2sdk-sdk2013\common\gameui\iGameConsole.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TimedAccess.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="zlib-1.2.13\crc32.h">
+      <Filter>Header Files\Public\zlib</Filter>
+    </ClInclude>
+    <ClInclude Include="zlib-1.2.13\deflate.h">
+      <Filter>Header Files\Public\zlib</Filter>
+    </ClInclude>
+    <ClInclude Include="zlib-1.2.13\gzguts.h">
+      <Filter>Header Files\Public\zlib</Filter>
+    </ClInclude>
+    <ClInclude Include="zlib-1.2.13\inffast.h">
+      <Filter>Header Files\Public\zlib</Filter>
+    </ClInclude>
+    <ClInclude Include="zlib-1.2.13\inffixed.h">
+      <Filter>Header Files\Public\zlib</Filter>
+    </ClInclude>
+    <ClInclude Include="zlib-1.2.13\inflate.h">
+      <Filter>Header Files\Public\zlib</Filter>
+    </ClInclude>
+    <ClInclude Include="zlib-1.2.13\inftrees.h">
+      <Filter>Header Files\Public\zlib</Filter>
+    </ClInclude>
+    <ClInclude Include="zlib-1.2.13\trees.h">
+      <Filter>Header Files\Public\zlib</Filter>
+    </ClInclude>
+    <ClInclude Include="zlib-1.2.13\zconf.h">
+      <Filter>Header Files\Public\zlib</Filter>
+    </ClInclude>
+    <ClInclude Include="zlib-1.2.13\zlib.h">
+      <Filter>Header Files\Public\zlib</Filter>
+    </ClInclude>
+    <ClInclude Include="zlib-1.2.13\zutil.h">
+      <Filter>Header Files\Public\zlib</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="zlib-1.2.13\CMakeLists.txt">
+      <Filter>Header Files\Public\zlib</Filter>
+    </Text>
+  </ItemGroup>
+  <ItemGroup>
+    <Xml Include="zlib-1.2.13\treebuild.xml">
+      <Filter>Header Files\Public\zlib</Filter>
+    </Xml>
+  </ItemGroup>
+</Project>
