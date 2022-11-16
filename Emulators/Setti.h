@@ -18,14 +18,14 @@
 
 #pragma once
 
-/* bUniverse param is "y" value in "STEAM_x:y:z" */
-int GenerateAVSMP(void* pDest, int nSteamID, bool bUniverse = true)
+int GenerateSetti(void* pDest)
 {
 	auto pTicket = (int*)pDest;
 
-	pTicket[0] = 0x14;                               //  +0, header
-	pTicket[3] = (nSteamID << 1) | (int)bUniverse;   // +12, SteamId, Low part
-	pTicket[4] = 0x01100001;                         // +16, SteamId, High part
+	pTicket[0] = 0xD4CA7F7B;
+	pTicket[1] = 0xC7DB6023;
+	pTicket[2] = 0x6D6A2E1F;
+	pTicket[5] = 0xB4C43105;
 
-	return 28;
+	return 768;
 }

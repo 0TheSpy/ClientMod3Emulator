@@ -18,14 +18,14 @@
 
 #pragma once
 
-/* bUniverse param is "y" value in "STEAM_x:y:z" */
-int GenerateAVSMP(void* pDest, int nSteamID, bool bUniverse = true)
+int GenerateOldRevEmu(void* pDest, int nSteamID)
 {
 	auto pTicket = (int*)pDest;
+	auto pbTicket = (unsigned char*)pDest;
 
-	pTicket[0] = 0x14;                               //  +0, header
-	pTicket[3] = (nSteamID << 1) | (int)bUniverse;   // +12, SteamId, Low part
-	pTicket[4] = 0x01100001;                         // +16, SteamId, High part
+	pTicket[0] = 0xFFFF;                       // +0, header
+	pTicket[1] = (nSteamID ^ 0xC9710266) << 1; // +4, SteamId
+	*(short *)pbTicket[8] = 0;                 // +8, unknown, in original emulator must be 0
 
-	return 28;
+	return 10;
 }
