@@ -38,11 +38,11 @@
 #include "detours.h"
 #include "sigscan.h"
  
-#pragma comment(lib, "lib/public/mysqlcppconn.lib")
+#pragma comment(lib, "mysqlcppconn.lib")
 #pragma comment(lib, "public/tier0.lib")
 #pragma comment(lib, "public/tier1.lib")
-#pragma comment(lib, "lib/public/vstdlib.lib")
-#pragma comment(lib, "lib/public/mathlib.lib")
+#pragma comment(lib, "public/vstdlib.lib")
+#pragma comment(lib, "public/mathlib.lib")
 
 using namespace std;
  
@@ -248,7 +248,7 @@ void Hooked_BuildConVarUpdateMessage(NET_SetConVar* cvarMsg, int flags, bool non
 	strncpy(acvar.value, XorStr("2.0"), MAX_OSPATH);
 
 	cvarMsg->m_ConVars.AddToTail(acvar);
-
+	 
 	cvarMsg->m_ConVars.RemoveMultipleFromHead(2);
 	  
 	auto s = cvarMsg->m_ConVars.begin();
