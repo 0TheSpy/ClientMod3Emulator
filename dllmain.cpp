@@ -396,8 +396,6 @@ static bool IsSafeFileToDownload(const char* pFilename)
 }
 
 
-
-
  
 /*
 bool SVC_GameEventList::WriteToBuffer(bf_write& buffer)
@@ -894,7 +892,7 @@ void __fastcall hkWriteListenEventList(void* _this, void* edx, int msg)
 					*(uint*)(msg + 0x10 + (uVar5 >> 5) * 4) =
 						1 << ((byte)uVar5 & 0x1f) | *(uint*)(msg + 0x10 + (uVar5 >> 5) * 4);
 
-					printfdbg("Listeting Event %d: %s\n", uVar5, pbVar6);
+					printfdbg("Listening Event %d: %s\n", uVar5, pbVar6);
 					totalListened++;
 				}
 			}
@@ -918,8 +916,7 @@ bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg,  b
 		//event handling
 	}
 	*/
-	 
-
+	  
 	static pSendNetMsg SendNetMsg = (pSendNetMsg)dwSendNetMsg; 
 	return SendNetMsg(this_, msg, bVoice);
 }
