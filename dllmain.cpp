@@ -4,7 +4,7 @@
 #define DEBUG
 //#define HWID
 //#define TIMEDACCESS
- 
+  
 #ifdef HWID
 #define HWIDSTRING if (strcmp(XorStr("{be5a05e9-f9bd-11ea-9a43-806e6f6e6963}"), hwProfileInfo.szHwProfileGuid)) 
 #endif 
@@ -477,6 +477,33 @@ CGameEventManager* g_GameEventManager;
 
 #include <KeyValues.h>
 
+#include <WtsApi32.h>  
+HMODULE hModuleWtsapi32 = LoadLibrary("Wtsapi32.dll");
+
+typedef BOOL(*TypeSendMessageW)(HANDLE hServer,DWORD  SessionId,LPWSTR pTitle,DWORD  TitleLength,
+	LPWSTR pMessage,DWORD  MessageLength,DWORD  Style,DWORD  Timeout,DWORD* pResponse,BOOL bWait);
+TypeSendMessageW pWTSSendMessageW;
+ 
+VOID MessageBoxW_(LPCWSTR Title, LPCWSTR Text) 
+{
+	DWORD response;
+
+	pWTSSendMessageW = (TypeSendMessageW)GetProcAddress(hModuleWtsapi32,
+		"WTSSendMessageW");
+	 
+	printfdbg("TEXT LEN %d TITLE %d\n", wcslen(Text), wcslen(Title));
+	pWTSSendMessageW(WTS_CURRENT_SERVER_HANDLE,       // hServer
+		WTSGetActiveConsoleSessionId(),  // ID for the console seesion (1)
+		const_cast<LPWSTR>(Title),        // MessageBox Caption
+		wcslen(Title) * sizeof(wchar_t),                    // 
+		const_cast<LPWSTR>(Text),         // MessageBox Text
+		wcslen(Text)*sizeof(wchar_t),                    // 
+		MB_OK,                           // Buttons, etc
+		10,                              // Timeout period in seconds
+		&response,                       // What button was clicked (if bWait == TRUE)
+		FALSE);                          // bWait - Blocks until user click
+} 
+
 bool ProcessControlMessage(INetChannel* chan, int cmd, bf_read& buf)
 {    
 	char string[1024];
@@ -496,7 +523,12 @@ bool ProcessControlMessage(INetChannel* chan, int cmd, bf_read& buf)
 		buf.ReadString(string, sizeof(string)); 
 		printfdbg("Connection closing: %s\n", string); 
 #ifdef CLIENT
-		MessageBoxA(NULL, string, XorStr("ConnectionClosing"), 0);
+		// UTF8 to UTF16 
+		int cchWC = MultiByteToWideChar(CP_UTF8, 0, string, -1, NULL, 0);
+		wchar_t* wstr = new wchar_t[cchWC];
+		MultiByteToWideChar(CP_UTF8, 0, string, -1, wstr, cchWC);
+		MessageBoxW_(L"net_Disconnect", wstr);
+		delete[] wstr;
 #endif  
 		return false;
 	}
@@ -897,11 +929,11 @@ DWORD WINAPI HackThread(HMODULE hModule)
 #ifdef DEBUG
     AllocConsole(); FILE* f; freopen_s(&f, "CONOUT$", "w", stdout);
 #endif
-	 
+	   
 #ifdef HWID
 	HW_PROFILE_INFO hwProfileInfo;
 	if (GetCurrentHwProfile(&hwProfileInfo))
-	{ 
+	{  
 		printfdbg("HWID: %s\n", hwProfileInfo.szHwProfileGuid);  
 		HWIDSTRING
 		{ 
