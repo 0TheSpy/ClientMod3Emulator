@@ -574,6 +574,15 @@ __declspec(naked) void getEIP()
 	}
 }
 
+template<typename FuncType>
+__forceinline static FuncType CallVFunction(void* ppClass, int index)
+{
+	int* pVTable = *(int**)ppClass;
+	int dwAddress = pVTable[index];
+	return (FuncType)(dwAddress);
+}
+
+
 DWORD NC;
 
 typedef bool(__thiscall* FunctionFn)(INetChannel*, bf_read&);
@@ -665,16 +674,19 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				{  
 					CLC_RespondCvarValue returnMsg; 
 					  
+					printfdbg("pThis %x\n", pThis);
+
 					memcpy(&returnMsg, &NC, 4);
 					returnMsg.m_iCookie = msgmsg->m_iCookie; //+16 
 					returnMsg.m_szCvarName = msgmsg->m_szCvarName; 
 					char* value_to_pass = "";
 					returnMsg.m_szCvarValue = value_to_pass;
 					returnMsg.m_eStatusCode = eQueryCvarValueStatus_CvarNotFound;
-					 
-					//__asm call getEIP  
-					pThis->SendNetMsg(returnMsg); 
 					  
+					//__asm call getEIP
+					 
+					CallVFunction<void(__thiscall*)(void*, CLC_RespondCvarValue*)>(pThis, 0x24)(pThis, &returnMsg); //pThis->SendNetMsg(returnMsg);
+					 
 					return false; 
 				}  
 				 
@@ -694,8 +706,8 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 					returnMsg.m_szCvarValue = value_to_pass;
 					returnMsg.m_eStatusCode = eQueryCvarValueStatus_ValueIntact;
 					 
-					pThis->SendNetMsg(returnMsg);
-
+					CallVFunction<void(__thiscall*)(void*, CLC_RespondCvarValue*)>(pThis, 0x24)(pThis, &returnMsg);  
+					 
 					return false;
 				}  
 			}
