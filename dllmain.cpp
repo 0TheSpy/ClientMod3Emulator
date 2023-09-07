@@ -984,7 +984,7 @@ DWORD WINAPI HackThread(HMODULE hModule)
 #endif
 	FreeLibraryAndExitThread(hModule, 0);
 	
-	return 0;
+	return 0; 
 }
 
 BOOL APIENTRY DllMain( HMODULE hModule, 
