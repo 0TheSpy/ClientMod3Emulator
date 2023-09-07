@@ -1,5 +1,6 @@
 // dllmain.cpp : Defines the entry point for the DLL application.
 #define _CRT_SECURE_NO_WARNINGS
+#define CLIENT 
 #define DEBUG
 //#define HWID
 //#define TIMEDACCESS
@@ -9,7 +10,7 @@
 #endif 
 
 #include <Windows.h>
-#include <iostream> 
+#include <iostream>  
 
 #include <dbg.h>
 #include <inetmessage.h>
@@ -66,7 +67,11 @@ ICvar* g_pCVar = nullptr;
 #include "TimedAccess.h"
 #endif
  
+#include <igameevents.h>
+
+DWORD dwProcessMessages;
 DWORD dwPrepareSteamConnectResponse;
+
 typedef bool(__thiscall* PrepareSteamConnectResponseFn)(void*, int, const char*, uint64, bool, const netadr_t&, bf_write&);
 bool __fastcall Hooked_PrepareSteamConnectResponse(DWORD* ecx, void* edx, int keySize, const char* encryptionKey, uint64 unGSSteamID, bool bGSSecure, const netadr_t& adr, bf_write& msg)
 {
@@ -145,7 +150,26 @@ bool __fastcall Hooked_PrepareSteamConnectResponse(DWORD* ecx, void* edx, int ke
 	return true;
 }
 
+
 #define MAX_OSPATH 260
+
+#define MAX_EVENT_BITS			9		// max bits needed for an event index
+#define NETMSG_TYPE_BITS	5
+#define	net_NOP 		0			// nop command used for padding
+#define net_Disconnect	1			// disconnect, last message in connection
+#define net_File		2			// file transmission message request/deny
+
+#define svc_GameEventList	30	// list of known games events and fields
+
+#define	svc_GameEvent		25	// global game event fired
+#define	net_Tick		3	 
+#define	svc_PacketEntities		26	
+#define	svc_UserMessage		23	
+#define svc_GetCvarValue 31
+
+#define clc_Move 9
+#define clc_ListenEvents 12
+#define clc_RespondCvarValue 25 
 
 class CNetMessage : public INetMessage
 {
@@ -212,6 +236,79 @@ public:
 };
 //
 
+typedef enum
+{
+	eQueryCvarValueStatus_ValueIntact = 0,	// It got the value fine.
+	eQueryCvarValueStatus_CvarNotFound = 1,
+	eQueryCvarValueStatus_NotACvar = 2,		// There's a ConCommand, but it's not a ConVar.
+	eQueryCvarValueStatus_CvarProtected = 3	// The cvar was marked with FCVAR_SERVER_CAN_NOT_QUERY, so the server is not allowed to have its value.
+} EQueryCvarValueStatus;
+
+typedef int QueryCvarCookie_t;
+
+#define DECLARE_CLC_MESSAGE( name )		\
+	DECLARE_BASE_MESSAGE( clc_##name );	\
+	IClientMessageHandler *m_pMessageHandler;\
+	bool Process() { return m_pMessageHandler->Process##name( this ); }\
+
+class CLC_RespondCvarValue : public CNetMessage
+{
+public:
+	DECLARE_CLC_MESSAGE(RespondCvarValue);
+	QueryCvarCookie_t		m_iCookie;
+	const char* m_szCvarName;
+	const char* m_szCvarValue;	// The sender sets this, and it automatically points it at m_szCvarNameBuffer when receiving.
+	EQueryCvarValueStatus	 m_eStatusCode;
+private:
+	char		m_szCvarNameBuffer[256];
+	char		m_szCvarValueBuffer[256];
+};
+
+#define DECLARE_SVC_MESSAGE( name )		\
+	DECLARE_BASE_MESSAGE( svc_##name );	\
+	IServerMessageHandler *m_pMessageHandler;\
+	bool Process() { return m_pMessageHandler->Process##name( this ); }\
+
+class SVC_GameEvent : public CNetMessage
+{
+	DECLARE_SVC_MESSAGE(GameEvent);
+
+	int	GetGroup() const { return INetChannelInfo::EVENTS; }
+
+public:
+	int			m_nLength;	// data length in bits
+	bf_read		m_DataIn;
+	bf_write	m_DataOut;
+};
+
+class SVC_GetCvarValue : public CNetMessage
+{
+public:
+	DECLARE_SVC_MESSAGE(GetCvarValue);
+
+	QueryCvarCookie_t	m_iCookie;
+	const char* m_szCvarName;	// The sender sets this, and it automatically points it at m_szCvarNameBuffer when receiving.
+
+private:
+	char		m_szCvarNameBuffer[256];
+};
+
+const char* CLC_RespondCvarValue::ToString(void) const { return 0; }
+bool CLC_RespondCvarValue::ReadFromBuffer(bf_read& buffer) { return 0; }
+bool CLC_RespondCvarValue::WriteToBuffer(bf_write& buffer) { return 0; }
+
+#include <bitvec.h>
+
+class CLC_ListenEvents : public CNetMessage
+{
+	DECLARE_CLC_MESSAGE(ListenEvents);
+
+	int	GetGroup() const { return INetChannelInfo::SIGNON; }
+
+public: 
+	CBitVec<MAX_EVENT_NUMBER> m_EventArray;
+};
+
 typedef void* (__cdecl* tCreateInterface)(const char* name, int* returnCode);
 void* GetInterface(const char* dllname, const char* interfacename)
 {
@@ -264,41 +361,6 @@ void Hooked_BuildConVarUpdateMessage(NET_SetConVar* cvarMsg, int flags, bool non
 	
 } 
 
-DWORD dwProcessMessages;
-
-#define MAX_EVENT_BITS			9		// max bits needed for an event index
-#define NETMSG_TYPE_BITS	5
-#define	net_NOP 		0			// nop command used for padding
-#define net_Disconnect	1			// disconnect, last message in connection
-#define net_File		2			// file transmission message request/deny
-
-#define svc_GameEventList	30	// list of known games events and fields
-
-#define	svc_GameEvent		25	// global game event fired
-#define	net_Tick		3	 
-#define	svc_PacketEntities		26	
-#define	svc_UserMessage		23	
-#define svc_GetCvarValue 31
-
-#define clc_Move 9
-#define clc_RespondCvarValue 25 
-
-#define DECLARE_SVC_MESSAGE( name )		\
-	DECLARE_BASE_MESSAGE( svc_##name );	\
-	IServerMessageHandler *m_pMessageHandler;\
-	bool Process() { return m_pMessageHandler->Process##name( this ); }\
-
-class SVC_GameEvent : public CNetMessage
-{
-	DECLARE_SVC_MESSAGE(GameEvent);
-
-	int	GetGroup() const { return INetChannelInfo::EVENTS; }
-
-public:
-	int			m_nLength;	// data length in bits
-	bf_read		m_DataIn;
-	bf_write	m_DataOut;
-}; 
 
 static bool IsSafeFileToDownload(const char* pFilename)
 {
@@ -334,25 +396,8 @@ static bool IsSafeFileToDownload(const char* pFilename)
 }
 
 
-#include <igameevents.h>
-
-class CGameEventManager;
-
- 
-
-class SVC_GameEventList : public CNetMessage
-{
-public:
-	DECLARE_SVC_MESSAGE(GameEventList);
-
-	int			m_nNumEvents;
-	int			m_nLength;
-	bf_read		m_DataIn;
-	bf_write	m_DataOut;
-};
 
 
- 
  
 /*
 bool SVC_GameEventList::WriteToBuffer(bf_write& buffer)
@@ -414,7 +459,21 @@ CGameEventDescriptor* GetEventDescriptor(CGameEventDescriptor* descriptors, int 
 	}
 	return NULL;
 }
+ 
+class CGameEventManager;
 
+class SVC_GameEventList : public CNetMessage
+{
+public:
+	DECLARE_SVC_MESSAGE(GameEventList);
+
+	int			m_nNumEvents;
+	int			m_nLength;
+	bf_read		m_DataIn;
+	bf_write	m_DataOut;
+};
+ 
+CGameEventManager* g_GameEventManager;
 
 #include <KeyValues.h>
 
@@ -431,14 +490,18 @@ bool ProcessControlMessage(INetChannel* chan, int cmd, bf_read& buf)
 	 
 	INetChannelHandler* m_MessageHandler = chan->GetMsgHandler();
 	  
+
 	if (cmd == net_Disconnect)
 	{ 
 		buf.ReadString(string, sizeof(string)); 
 		printfdbg("Connection closing: %s\n", string); 
+#ifdef CLIENT
 		MessageBoxA(NULL, string, XorStr("ConnectionClosing"), 0);
+#endif  
 		return false;
 	}
 
+	 
 	if (cmd == net_File) 
 	{  
 		unsigned int transferID = buf.ReadUBitLong(32); 
@@ -487,17 +550,15 @@ INetMessage* FindMessage(INetChannel* ecx, int type)
 	return result;
 }
 
+
 const char* GetEventName(int eventid)
-{
-	void* eventManager;
+{ 
 	void* EDI;
 	int count;
 	CGameEventDescriptor* descriptors;
 	__asm
-	{
-		mov     edx, 0x203C2684
-		mov     eax, [edx]
-		mov eventManager, eax
+	{ 
+		mov eax, g_GameEventManager
 		mov edx, [eax + 0x10]
 		mov count, edx
 		mov edx, [eax + 0x4]
@@ -511,50 +572,6 @@ const char* GetEventName(int eventid)
 
 	return "";
 }
-  
-typedef enum
-{
-	eQueryCvarValueStatus_ValueIntact = 0,	// It got the value fine.
-	eQueryCvarValueStatus_CvarNotFound = 1,
-	eQueryCvarValueStatus_NotACvar = 2,		// There's a ConCommand, but it's not a ConVar.
-	eQueryCvarValueStatus_CvarProtected = 3	// The cvar was marked with FCVAR_SERVER_CAN_NOT_QUERY, so the server is not allowed to have its value.
-} EQueryCvarValueStatus;
-
-typedef int QueryCvarCookie_t; 
-
-#define DECLARE_CLC_MESSAGE( name )		\
-	DECLARE_BASE_MESSAGE( clc_##name );	\
-	IClientMessageHandler *m_pMessageHandler;\
-	bool Process() { return m_pMessageHandler->Process##name( this ); }\
-
-class CLC_RespondCvarValue : public CNetMessage
-{
-public:
-	DECLARE_CLC_MESSAGE(RespondCvarValue);
-	QueryCvarCookie_t		m_iCookie;
-	const char* m_szCvarName;
-	const char* m_szCvarValue;	// The sender sets this, and it automatically points it at m_szCvarNameBuffer when receiving.
-	EQueryCvarValueStatus	 m_eStatusCode;
-private:
-	char		m_szCvarNameBuffer[256];
-	char		m_szCvarValueBuffer[256];
-};
-
-class SVC_GetCvarValue : public CNetMessage
-{
-public:
-	DECLARE_SVC_MESSAGE(GetCvarValue);
-
-	QueryCvarCookie_t	m_iCookie;
-	const char* m_szCvarName;	// The sender sets this, and it automatically points it at m_szCvarNameBuffer when receiving.
-
-private:
-	char		m_szCvarNameBuffer[256];
-};
- 
-const char* CLC_RespondCvarValue::ToString(void) const {	return 0;}
-bool CLC_RespondCvarValue::ReadFromBuffer(bf_read& buffer) {	return 0;}
-bool CLC_RespondCvarValue::WriteToBuffer(bf_write& buffer){	return 0;} 
  
 DWORD eip_;
 __declspec(naked) void getEIP()
@@ -606,7 +623,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 		}
 
 		unsigned char cmd = buf.ReadUBitLong(NETMSG_TYPE_BITS);
-
+		 
 		if (cmd <= net_File)
 		{
 			if (!ProcessControlMessage(pThis, cmd, buf))
@@ -615,7 +632,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 			}
 
 			continue;
-		}
+		} 
 
 		INetMessage* netmsg = FindMessage(pThis, cmd);
 
@@ -711,10 +728,28 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 					return false;
 				}  
 			}
-
-			if (cmd != net_Tick && cmd != svc_PacketEntities && cmd != svc_UserMessage)
-				printfdbg("Income msg %d: %s\n", cmd, netmsg->ToString());
 			 
+			if (cmd != net_Tick && cmd != svc_PacketEntities && cmd != svc_UserMessage && cmd != clc_Move)
+				printfdbg("Income msg %d from %s: %s\n", cmd, pThis->GetAddress() , netmsg->ToString());
+			   
+#ifndef CLIENT
+			if (cmd == net_SetConVar) 
+			{ 
+				NET_SetConVar* msgmsg = (NET_SetConVar*)netmsg; 
+				if (msgmsg->m_ConVars.Count() > 1)
+					for (int i = 0; i < msgmsg->m_ConVars.Count(); i++)
+						printfdbg("NET_SetConVar %d %s -> %s\n", i, msgmsg->m_ConVars[i].name, msgmsg->m_ConVars[i].value); 
+			} 
+
+			if (cmd == clc_ListenEvents)
+			{  
+				CLC_ListenEvents* msgmsg = (CLC_ListenEvents*)netmsg;  
+				for (int i = 0; i < MAX_EVENT_NUMBER; i++)
+					if (msgmsg->m_EventArray.Get(i)) { 
+						printfdbg("clc_ListenEvents %d: %s\n", i, GetEventName(i)); 
+					} 
+			}  
+#endif 
 
 			if (!netmsg->Process())
 			{
@@ -722,7 +757,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				return false;
 			}
 		}
-		else
+		else  
 		{
 			printfdbg("Netchannel: unknown net message (%i) from %s.\n", cmd, pThis->GetAddress());
 			return false;
@@ -842,9 +877,17 @@ typedef bool(__thiscall* pSendNetMsg)(INetChannel* pNetChan, INetMessage& msg, b
 bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg,  bool bVoice)
 { 
 	int cmd = msg.GetType();
-	if (cmd != net_Tick && cmd != clc_Move)
-		printfdbg("Outcome msg %d: %s\n", cmd, msg.ToString()); //this_->GetAddress() msg.GetName()
+	if (cmd != net_Tick && cmd != clc_Move && cmd != svc_UserMessage)
+		printfdbg("Outcome msg %d: %s\n", cmd, msg.ToString()); //msg.GetName()
 	      
+	/*
+	if (cmd == svc_GameEvent)
+	{ 
+		//event handling
+	}
+	*/
+	 
+
 	static pSendNetMsg SendNetMsg = (pSendNetMsg)dwSendNetMsg; 
 	return SendNetMsg(this_, msg, bVoice);
 }
@@ -854,7 +897,7 @@ DWORD WINAPI HackThread(HMODULE hModule)
 #ifdef DEBUG
     AllocConsole(); FILE* f; freopen_s(&f, "CONOUT$", "w", stdout);
 #endif
-
+	 
 #ifdef HWID
 	HW_PROFILE_INFO hwProfileInfo;
 	if (GetCurrentHwProfile(&hwProfileInfo))
@@ -881,6 +924,11 @@ DWORD WINAPI HackThread(HMODULE hModule)
 
 	printfdbg(XorStr("ClientMod 3.0 Emulator\nOriginal code: InFro, updated by Spy\nCredits to cssandroid & atryrkakiv\n"));
 	 
+	SigScan scan;
+	
+	g_GameEventManager = (CGameEventManager*)GetInterface("engine.dll", "GAMEEVENTSMANAGER002");
+	  
+#ifdef CLIENT
 	DWORD dwEngine = (DWORD)GetModuleHandleA("engine.dll");
 	IGameConsole* g_pGameConsole = (IGameConsole*)GetInterface(XorStr("gameui.dll"), XorStr("GameConsole003"));
 	Color clr1 = Color(0x30, 0xCC, 0x30, 0xFF); Color clr2 = Color(0xCC,0xCC,0x20,0xFF);
@@ -901,14 +949,18 @@ DWORD WINAPI HackThread(HMODULE hModule)
 	var1->m_nFlags = 537001984; var2->m_nFlags = 537001984; var3->m_nFlags = 537001984;    //FCVAR_PROTECTED
 	   
 	//g_pEngineClient->ExecuteClientCmd("setinfo se_lkblox 0; setinfo se_autobunnyhopping 0; setinfo se_disablebunnyhopping 0; setinfo e_viewmodel_right 0; setinfo e_viewmodel_fov 0; setinfo e_viewmodel_up 0;");
-	  
-    SigScan scan; 
+	   
     dwPrepareSteamConnectResponse = scan.FindPattern(XorStr("engine.dll"), XorStr("\x81\xEC\x00\x00\x00\x00\x56\x8B\xF1\x8B\x0D\x00\x00\x00\x00\x8B\x01\xFF\x50\x24"), XorStr("xx????xxxxx????xxxxx")); //engine.dll+5D50
 	dwBuildConVarUpdateMessage = scan.FindPattern(XorStr("engine.dll"), XorStr("\xE8\x00\x00\x00\x00\x8D\x54\x24\x3C"), XorStr("x????xxxx"));
 	dwBuildConVarUpdateMessage += 0x9719;
+	
+#endif
+	
 	dwProcessMessages = scan.FindPattern(XorStr("engine.dll"), XorStr("\x83\xEC\x2C\x53\x55\x89\x4C\x24\x10"), XorStr("xxxxxxxxx"));
 
 	printfdbg("dwPrepareSteamConnectResponse %x\n", dwPrepareSteamConnectResponse);
+
+#ifdef CLIENT
 	printfdbg("dwBuildConVarUpdateMessage %x\n", dwBuildConVarUpdateMessage);
 	printfdbg("dwProcessMessages %x\n", dwProcessMessages);
 
@@ -918,23 +970,24 @@ DWORD WINAPI HackThread(HMODULE hModule)
 	
 	DWORD dwWriteListenEventList = scan.FindPattern(XorStr("engine.dll"), XorStr("\x51\x8b\x44\x24\x08\x83\xc0\x10"), XorStr("xxxxxxxx")); //dwEngine + 0xADA80; 
 	printfdbg("dwWriteListenEventList %x\n", dwWriteListenEventList);
-	   
+#endif
 	dwSendNetMsg = scan.FindPattern(XorStr("engine.dll"), XorStr("\xcc\x56\x8b\xf1\x8d\x4e\x74"), XorStr("xxxxxxx")) + 1; //dwEngine + 0xff950;
 	printfdbg("dwSendNetMsg %x\n", dwSendNetMsg);
 	  
     DetourTransactionBegin();
     DetourUpdateThread(GetCurrentThread());
-    DetourAttach(&(LPVOID&)dwPrepareSteamConnectResponse, &Hooked_PrepareSteamConnectResponse);
-    DetourAttach(&(LPVOID&)dwProcessMessages, &Hooked_ProcessMessages);
-    DetourAttach(&(LPVOID&)dwBuildConVarUpdateMessage, &Hooked_BuildConVarUpdateMessage);
-	 
+#ifdef CLIENT
+    DetourAttach(&(LPVOID&)dwPrepareSteamConnectResponse, &Hooked_PrepareSteamConnectResponse); 
+    DetourAttach(&(LPVOID&)dwBuildConVarUpdateMessage, &Hooked_BuildConVarUpdateMessage); 
 	DetourAttach(&(LPVOID&)(dwWriteListenEventList), (PBYTE)hkWriteListenEventList); 
-
+#endif
+	DetourAttach(&(LPVOID&)dwProcessMessages, &Hooked_ProcessMessages); 
 	DetourAttach(&(LPVOID&)(dwSendNetMsg), (PBYTE)hkSendNetMsg);
     DetourTransactionCommit();  
    
 	//ConCommandBaseMgr::OneTimeInit(&g_ConVarAccessor);  
 
+#ifdef CLIENT
 	DWORD dwDisconnectMessage = scan.FindPattern(XorStr("engine.dll"), XorStr("\x74\x14\x8b\x01\x68\x0\x0\x0\x0\xff\x90"), XorStr("xxxxx????xx")) + 5; //dwEngine + 0x61cc; 
 	printfdbg("dwDisconnectMessage %x\n", dwDisconnectMessage); 
 	 
@@ -944,7 +997,8 @@ DWORD WINAPI HackThread(HMODULE hModule)
 	VirtualProtect((PVOID)(dwDisconnectMessage), 4, PAGE_EXECUTE_READWRITE, &oldProtect);
 	memcpy(&oldDscmsg, (PVOID)(dwDisconnectMessage), 4);
 	memcpy((PVOID)(dwDisconnectMessage), &dscmsg, 4); // CBaseClientState::Disconnect
-	   
+#endif
+
 	while (true)
 	{ 
 		if (GetAsyncKeyState(VK_DELETE))  break;
@@ -963,25 +1017,28 @@ DWORD WINAPI HackThread(HMODULE hModule)
 
 	printfdbg("Unhooking...\n");
 	 
+#ifdef CLIENT
 	memcpy((PVOID)(dwDisconnectMessage), &oldDscmsg, 4);
-	 
+#endif
+
 	DetourTransactionBegin(); 
 	DetourUpdateThread(GetCurrentThread());
-	DetourDetach(&(LPVOID&)dwPrepareSteamConnectResponse, reinterpret_cast<BYTE*>(Hooked_PrepareSteamConnectResponse));
-	DetourDetach(&(LPVOID&)dwProcessMessages, reinterpret_cast<BYTE*>(Hooked_ProcessMessages));
-	DetourDetach(&(LPVOID&)dwBuildConVarUpdateMessage, reinterpret_cast<BYTE*>(Hooked_BuildConVarUpdateMessage));
-
+#ifdef CLIENT
+	DetourDetach(&(LPVOID&)dwPrepareSteamConnectResponse, reinterpret_cast<BYTE*>(Hooked_PrepareSteamConnectResponse)); 
+	DetourDetach(&(LPVOID&)dwBuildConVarUpdateMessage, reinterpret_cast<BYTE*>(Hooked_BuildConVarUpdateMessage)); 
 	DetourDetach(&(LPVOID&)dwWriteListenEventList, reinterpret_cast<BYTE*>(hkWriteListenEventList));
-	 
+#endif
+	DetourDetach(&(LPVOID&)dwProcessMessages, reinterpret_cast<BYTE*>(Hooked_ProcessMessages));
 	DetourDetach(&(LPVOID&)(dwSendNetMsg), reinterpret_cast<BYTE*>(hkSendNetMsg));
 
 	DetourTransactionCommit();  
 	 
-
+#ifdef CLIENT
 #ifdef DEBUG
 	if (f) fclose(f);
 	FreeConsole();
 #endif
+#endif 
 	FreeLibraryAndExitThread(hModule, 0);
 	
 	return 0; 
