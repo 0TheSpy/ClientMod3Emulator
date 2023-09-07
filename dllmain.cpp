@@ -731,6 +731,111 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 
 	return true;  
 }
+
+
+//Ultr@Hook fix
+typedef void(__thiscall* pWriteListenEventList)(void* _this, int msg);
+pWriteListenEventList oWriteListenEventList;
+void __fastcall hkWriteListenEventList(void* _this, void* edx, int msg)
+{
+	byte bVar1;
+	int EventCount;
+	int EventNames;
+	int iVar4;
+	uint uVar5;
+	byte* pbVar6;
+	bool bVar7;
+	uint local_40;
+	int local_3c;
+	char* strPlayerHurt;
+	byte* local_28;
+	char* strPlayerSay;
+	byte* local_20;
+	int local_1c;
+	int iterator;
+	int i;
+
+	for (i = 0; i < 0x10; i = i + 1)
+		*(int*)(msg + 0x10 + i * 4) = 0;
+
+	EventCount = *(int*)((int)_this + 0x10);
+	EventNames = *(int*)((int)_this + 4);
+
+	iterator = 0;
+	int totalListened = 0;
+
+	do {
+		if (EventCount <= iterator) {
+			printfdbg("WriteListenEventList: Total %d events listened\n", totalListened);
+			return;
+		}
+		pbVar6 = (byte*)(iterator * 0x40 + EventNames);
+
+		//printfdbg("Event %d: %s\n", iterator, pbVar6);
+
+		bVar7 = false;
+		for (local_1c = 0; local_1c < *(int*)(pbVar6 + 0x38); local_1c = local_1c + 1) {
+			iVar4 = *(int*)(*(int*)(pbVar6 + 0x2c) + local_1c * 4);
+			if ((*(int*)(iVar4 + 4) == 1) || (*(int*)(iVar4 + 4) == 4)) {
+				bVar7 = true;
+				break;
+			}
+		}
+		if ((bVar7) && (*(int*)(pbVar6 + 0x20) != -1))
+		{
+			strPlayerSay = "player_say";
+			local_20 = pbVar6;
+			do {
+				bVar1 = *local_20;
+				bVar7 = bVar1 < (byte)*strPlayerSay;
+				if (bVar1 != *strPlayerSay) {
+				LAB_10001147:
+					local_3c = -(int)bVar7 | 1;
+					goto LAB_1000114f;
+				}
+				if (bVar1 == 0) break;
+				bVar1 = local_20[1];
+				bVar7 = bVar1 < (byte)strPlayerSay[1];
+				if (bVar1 != strPlayerSay[1]) goto LAB_10001147;
+				local_20 = local_20 + 2;
+				strPlayerSay = strPlayerSay + 2;
+			} while (bVar1 != 0);
+			local_3c = 0;
+		LAB_1000114f:
+			if (local_3c != 0) {
+				strPlayerHurt = "player_hurt";
+				local_28 = pbVar6;
+				do {
+					bVar1 = *local_28;
+					bVar7 = bVar1 < (byte)*strPlayerHurt;
+					if (bVar1 != *strPlayerHurt) {
+					LAB_100011a5:
+						local_40 = -(int)bVar7 | 1;
+						goto LAB_100011ad;
+					}
+					if (bVar1 == 0) break;
+					bVar1 = local_28[1];
+					bVar7 = bVar1 < (byte)strPlayerHurt[1];
+					if (bVar1 != strPlayerHurt[1]) goto LAB_100011a5;
+					local_28 = local_28 + 2;
+					strPlayerHurt = strPlayerHurt + 2;
+				} while (bVar1 != 0);
+				local_40 = 0;
+			LAB_100011ad:
+				if (local_40 != 0) {
+					uVar5 = *(uint*)(pbVar6 + 0x20);
+					*(uint*)(msg + 0x10 + (uVar5 >> 5) * 4) =
+						1 << ((byte)uVar5 & 0x1f) | *(uint*)(msg + 0x10 + (uVar5 >> 5) * 4);
+
+					printfdbg("Listeting Event %d: %s\n", uVar5, pbVar6);
+					totalListened++;
+				}
+			}
+		}
+		iterator = iterator + 1;
+	} while (true); 
+}
+ 
    
 DWORD WINAPI HackThread(HMODULE hModule)
 { 
@@ -764,6 +869,7 @@ DWORD WINAPI HackThread(HMODULE hModule)
 
 	printfdbg(XorStr("ClientMod 3.0 Emulator\nOriginal code: InFro, updated by Spy\nCredits to cssandroid & atryrkakiv\n"));
 	 
+	DWORD dwEngine = (DWORD)GetModuleHandleA("engine.dll");
 	IGameConsole* g_pGameConsole = (IGameConsole*)GetInterface(XorStr("gameui.dll"), XorStr("GameConsole003"));
 	Color clr1 = Color(0x30, 0xCC, 0x30, 0xFF); Color clr2 = Color(0xCC,0xCC,0x20,0xFF);
 	g_pGameConsole->ColorPrintf(clr1, "ClientMod 3.0 Emulator\nOriginal code: ");
@@ -798,25 +904,30 @@ DWORD WINAPI HackThread(HMODULE hModule)
 	NC = (DWORD) * (PVOID*)NC;
 	printfdbg("NC %x\n", NC); 
 	
+	DWORD dwWriteListenEventList = scan.FindPattern(XorStr("engine.dll"), XorStr("\x51\x8b\x44\x24\x08\x83\xc0\x10"), XorStr("xxxxxxxx")); //dwEngine + 0xADA80; 
+	printfdbg("dwWriteListenEventList %x\n", dwWriteListenEventList);
+	 
     DetourTransactionBegin();
     DetourUpdateThread(GetCurrentThread());
     DetourAttach(&(LPVOID&)dwPrepareSteamConnectResponse, &Hooked_PrepareSteamConnectResponse);
     DetourAttach(&(LPVOID&)dwProcessMessages, &Hooked_ProcessMessages);
     DetourAttach(&(LPVOID&)dwBuildConVarUpdateMessage, &Hooked_BuildConVarUpdateMessage);
-    DetourTransactionCommit();
+	 
+	DetourAttach(&(LPVOID&)(dwWriteListenEventList), (PBYTE)hkWriteListenEventList); 
+    DetourTransactionCommit();  
    
-	//ConCommandBaseMgr::OneTimeInit(&g_ConVarAccessor); 
+	//ConCommandBaseMgr::OneTimeInit(&g_ConVarAccessor);  
 
-	DWORD dwEngine = (DWORD)GetModuleHandleA("engine.dll");
+	DWORD dwDisconnectMessage = scan.FindPattern(XorStr("engine.dll"), XorStr("\x74\x14\x8b\x01\x68\x0\x0\x0\x0\xff\x90"), XorStr("xxxxx????xx")) + 5; //dwEngine + 0x61cc; 
+	printfdbg("dwDisconnectMessage %x\n", dwDisconnectMessage); 
 	 
 	char* dscmsg = "Disconnect by ClientMod\0";
 	 
-	DWORD oldProtect; DWORD oldDscmsg;
-	VirtualProtect((PVOID)(dwEngine + 0x61cc ), 4, PAGE_EXECUTE_READWRITE, &oldProtect); 
-	memcpy(&oldDscmsg, (PVOID)(dwEngine + 0x61cc), 4);
-	memcpy((PVOID)(dwEngine + 0x61cc), &dscmsg, 4); // CBaseClientState::Disconnect
-	  
-	  
+	DWORD oldProtect; DWORD oldDscmsg; //make scan
+	VirtualProtect((PVOID)(dwDisconnectMessage), 4, PAGE_EXECUTE_READWRITE, &oldProtect);
+	memcpy(&oldDscmsg, (PVOID)(dwDisconnectMessage), 4);
+	memcpy((PVOID)(dwDisconnectMessage), &dscmsg, 4); // CBaseClientState::Disconnect
+	   
 	while (true)
 	{ 
 		if (GetAsyncKeyState(VK_DELETE))  break;
@@ -835,13 +946,15 @@ DWORD WINAPI HackThread(HMODULE hModule)
 
 	printfdbg("Unhooking...\n");
 	 
-	memcpy((PVOID)(dwEngine + 0x61cc), &oldDscmsg, 4);
-
+	memcpy((PVOID)(dwDisconnectMessage), &oldDscmsg, 4);
+	 
 	DetourTransactionBegin(); 
 	DetourUpdateThread(GetCurrentThread());
 	DetourDetach(&(LPVOID&)dwPrepareSteamConnectResponse, reinterpret_cast<BYTE*>(Hooked_PrepareSteamConnectResponse));
 	DetourDetach(&(LPVOID&)dwProcessMessages, reinterpret_cast<BYTE*>(Hooked_ProcessMessages));
 	DetourDetach(&(LPVOID&)dwBuildConVarUpdateMessage, reinterpret_cast<BYTE*>(Hooked_BuildConVarUpdateMessage));
+
+	DetourDetach(&(LPVOID&)dwWriteListenEventList, reinterpret_cast<BYTE*>(hkWriteListenEventList));
 	DetourTransactionCommit(); 
 	 
 
