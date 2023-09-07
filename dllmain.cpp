@@ -280,6 +280,7 @@ DWORD dwProcessMessages;
 #define	svc_UserMessage		23	
 #define svc_GetCvarValue 31
 
+#define clc_Move 9
 #define clc_RespondCvarValue 25 
 
 #define DECLARE_SVC_MESSAGE( name )		\
@@ -682,12 +683,11 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 					char* value_to_pass = "";
 					returnMsg.m_szCvarValue = value_to_pass;
 					returnMsg.m_eStatusCode = eQueryCvarValueStatus_CvarNotFound;
-					  
-					//__asm call getEIP
-					 
+					   
+					//__asm call getEIP 
 					CallVFunction<void(__thiscall*)(void*, CLC_RespondCvarValue*)>(pThis, 0x24)(pThis, &returnMsg); //pThis->SendNetMsg(returnMsg);
 					 
-					return false; 
+					return false;  
 				}  
 				 
 				if (!strcmp(msgmsg->m_szCvarName, "se_lkblox") ||
@@ -713,7 +713,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 			}
 
 			if (cmd != net_Tick && cmd != svc_PacketEntities && cmd != svc_UserMessage)
-				printfdbg("Msg %d from %s: %s\n", cmd, pThis->GetAddress(), netmsg->ToString());
+				printfdbg("Income msg %d: %s\n", cmd, netmsg->ToString());
 			 
 
 			if (!netmsg->Process())
@@ -835,7 +835,19 @@ void __fastcall hkWriteListenEventList(void* _this, void* edx, int msg)
 		iterator = iterator + 1;
 	} while (true); 
 }
- 
+
+
+DWORD dwSendNetMsg; 
+typedef bool(__thiscall* pSendNetMsg)(INetChannel* pNetChan, INetMessage& msg, bool bVoice);
+bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg,  bool bVoice)
+{ 
+	int cmd = msg.GetType();
+	if (cmd != net_Tick && cmd != clc_Move)
+		printfdbg("Outcome msg %d: %s\n", cmd, msg.ToString()); //this_->GetAddress() msg.GetName()
+	      
+	static pSendNetMsg SendNetMsg = (pSendNetMsg)dwSendNetMsg; 
+	return SendNetMsg(this_, msg, bVoice);
+}
    
 DWORD WINAPI HackThread(HMODULE hModule)
 { 
@@ -906,7 +918,10 @@ DWORD WINAPI HackThread(HMODULE hModule)
 	
 	DWORD dwWriteListenEventList = scan.FindPattern(XorStr("engine.dll"), XorStr("\x51\x8b\x44\x24\x08\x83\xc0\x10"), XorStr("xxxxxxxx")); //dwEngine + 0xADA80; 
 	printfdbg("dwWriteListenEventList %x\n", dwWriteListenEventList);
-	 
+	   
+	dwSendNetMsg = scan.FindPattern(XorStr("engine.dll"), XorStr("\xcc\x56\x8b\xf1\x8d\x4e\x74"), XorStr("xxxxxxx")) + 1; //dwEngine + 0xff950;
+	printfdbg("dwSendNetMsg %x\n", dwSendNetMsg);
+	  
     DetourTransactionBegin();
     DetourUpdateThread(GetCurrentThread());
     DetourAttach(&(LPVOID&)dwPrepareSteamConnectResponse, &Hooked_PrepareSteamConnectResponse);
@@ -914,6 +929,8 @@ DWORD WINAPI HackThread(HMODULE hModule)
     DetourAttach(&(LPVOID&)dwBuildConVarUpdateMessage, &Hooked_BuildConVarUpdateMessage);
 	 
 	DetourAttach(&(LPVOID&)(dwWriteListenEventList), (PBYTE)hkWriteListenEventList); 
+
+	DetourAttach(&(LPVOID&)(dwSendNetMsg), (PBYTE)hkSendNetMsg);
     DetourTransactionCommit();  
    
 	//ConCommandBaseMgr::OneTimeInit(&g_ConVarAccessor);  
@@ -955,7 +972,10 @@ DWORD WINAPI HackThread(HMODULE hModule)
 	DetourDetach(&(LPVOID&)dwBuildConVarUpdateMessage, reinterpret_cast<BYTE*>(Hooked_BuildConVarUpdateMessage));
 
 	DetourDetach(&(LPVOID&)dwWriteListenEventList, reinterpret_cast<BYTE*>(hkWriteListenEventList));
-	DetourTransactionCommit(); 
+	 
+	DetourDetach(&(LPVOID&)(dwSendNetMsg), reinterpret_cast<BYTE*>(hkSendNetMsg));
+
+	DetourTransactionCommit();  
 	 
 
 #ifdef DEBUG
