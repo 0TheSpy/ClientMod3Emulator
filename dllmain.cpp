@@ -798,110 +798,62 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 }
 
 
-//Ultr@Hook fix
-typedef void(__thiscall* pWriteListenEventList)(void* _this, int msg);
-pWriteListenEventList oWriteListenEventList;
-void __fastcall hkWriteListenEventList(void* _this, void* edx, int msg)
+enum
 {
-	byte bVar1;
-	int EventCount;
-	int EventNames;
-	int iVar4;
-	uint uVar5;
-	byte* pbVar6;
-	bool bVar7;
-	uint local_40;
-	int local_3c;
-	char* strPlayerHurt;
-	byte* local_28;
-	char* strPlayerSay;
-	byte* local_20;
-	int local_1c;
-	int iterator;
-	int i;
+	SERVERSIDE = 0,		// this is a server side listener, event logger etc
+	CLIENTSIDE,			// this is a client side listenet, HUD element etc
+	CLIENTSTUB,			// this is a serverside stub for a remote client listener (used by engine only)
+	SERVERSIDE_OLD,		// legacy support for old server event listeners
+	CLIENTSIDE_OLD,		// legecy support for old client event listeners
+};
+ 
 
-	for (i = 0; i < 0x10; i = i + 1)
-		*(int*)(msg + 0x10 + i * 4) = 0;
-
-	EventCount = *(int*)((int)_this + 0x10);
-	EventNames = *(int*)((int)_this + 4);
-
-	iterator = 0;
+//Ultr@Hook fix 
+void __fastcall hkWriteListenEventList(CGameEventManager* _this, void* edx, int msg) //SVC_GameEventList*
+{
 	int totalListened = 0;
 
-	do {
-		if (EventCount <= iterator) {
-			printfdbg("WriteListenEventList: Total %d events listened\n", totalListened);
-			return;
-		}
-		pbVar6 = (byte*)(iterator * 0x40 + EventNames);
+	for (int i = 0; i < 0x10; i++)
+		*(int*)(msg + 0x10 + i * 4) = 0;
 
-		//printfdbg("Event %d: %s\n", iterator, pbVar6);
+	int EventCount = *(int*)((int)_this + 0x10);
+	int EventNames = *(int*)((int)_this + 4);
 
-		bVar7 = false;
-		for (local_1c = 0; local_1c < *(int*)(pbVar6 + 0x38); local_1c = local_1c + 1) {
-			iVar4 = *(int*)(*(int*)(pbVar6 + 0x2c) + local_1c * 4);
-			if ((*(int*)(iVar4 + 4) == 1) || (*(int*)(iVar4 + 4) == 4)) {
-				bVar7 = true;
+	for (int j = 0; j < EventCount; j++)
+	{
+		CGameEventDescriptor* _descriptor = (CGameEventDescriptor*)(j * 0x40 + EventNames); 
+		//printfdbg("Event %d: %s %d\n", iterator, _descriptor->name, _descriptor->listeners.Count()); 
+		bool bHasClientListener = false;
+		for (int i = 0; i < _descriptor->listeners.Count(); i++) { // *(int*)(descriptor + 0x38)
+			CGameEventCallback* listener = _descriptor->listeners[i]; // *(int*)(*(int*)(descriptor + 0x2c) + i * 4);
+			if ((listener->m_nListenerType == CLIENTSIDE) || (listener->m_nListenerType == CLIENTSIDE_OLD)) { //(*(int*)(listener + 4)
+				bHasClientListener = true;
 				break;
 			}
 		}
-		if ((bVar7) && (*(int*)(pbVar6 + 0x20) != -1))
+		if ((bHasClientListener) && (_descriptor->eventid != -1))
 		{
-			strPlayerSay = "player_say";
-			local_20 = pbVar6;
-			do {
-				bVar1 = *local_20;
-				bVar7 = bVar1 < (byte)*strPlayerSay;
-				if (bVar1 != *strPlayerSay) {
-				LAB_10001147:
-					local_3c = -(int)bVar7 | 1;
-					goto LAB_1000114f;
-				}
-				if (bVar1 == 0) break;
-				bVar1 = local_20[1];
-				bVar7 = bVar1 < (byte)strPlayerSay[1];
-				if (bVar1 != strPlayerSay[1]) goto LAB_10001147;
-				local_20 = local_20 + 2;
-				strPlayerSay = strPlayerSay + 2;
-			} while (bVar1 != 0);
-			local_3c = 0;
-		LAB_1000114f:
-			if (local_3c != 0) {
-				strPlayerHurt = "player_hurt";
-				local_28 = pbVar6;
-				do {
-					bVar1 = *local_28;
-					bVar7 = bVar1 < (byte)*strPlayerHurt;
-					if (bVar1 != *strPlayerHurt) {
-					LAB_100011a5:
-						local_40 = -(int)bVar7 | 1;
-						goto LAB_100011ad;
-					}
-					if (bVar1 == 0) break;
-					bVar1 = local_28[1];
-					bVar7 = bVar1 < (byte)strPlayerHurt[1];
-					if (bVar1 != strPlayerHurt[1]) goto LAB_100011a5;
-					local_28 = local_28 + 2;
-					strPlayerHurt = strPlayerHurt + 2;
-				} while (bVar1 != 0);
-				local_40 = 0;
-			LAB_100011ad:
-				if (local_40 != 0) {
-					uVar5 = *(uint*)(pbVar6 + 0x20);
-					*(uint*)(msg + 0x10 + (uVar5 >> 5) * 4) =
-						1 << ((byte)uVar5 & 0x1f) | *(uint*)(msg + 0x10 + (uVar5 >> 5) * 4);
-
-					printfdbg("Listening Event %d: %s\n", uVar5, pbVar6);
-					totalListened++;
-				}
+			if (strcmp(_descriptor->name, "player_say") && strcmp(_descriptor->name, "player_hurt"))
+			{
+				uint uVar5 = _descriptor->eventid; //*(uint*)(descriptor + 0x20);  
+				//msg->add_event_mask( EventArray.GetDWord( i ) );
+				*(uint*)(msg + 0x10 + (uVar5 >> 5) * 4) =
+					1 << ((byte)uVar5 & 0x1f) | *(uint*)(msg + 0x10 + (uVar5 >> 5) * 4); 
+				printfdbg("Listening Event %d: %s %x\n", uVar5, _descriptor, *(uint*)(msg + 0x10 + (uVar5 >> 5) * 4));
+				totalListened++;
 			}
 		}
-		iterator = iterator + 1;
-	} while (true); 
+	}
+
+	printfdbg("WriteListenEventList: Total %d events listened. Bitset: ", totalListened); 
+	for (int i = 0; i < 0x10; i++)
+		printfdbg("%08x ", *(uint*)(msg + 0x10 + i * 4)); 
+	printfdbg("\n");
+	 
+	return;
 }
 
-
+ 
 DWORD dwSendNetMsg; 
 typedef bool(__thiscall* pSendNetMsg)(INetChannel* pNetChan, INetMessage& msg, bool bVoice);
 bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg,  bool bVoice)
