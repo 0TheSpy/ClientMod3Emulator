@@ -4,7 +4,7 @@
 #define DEBUG  
 //#define HWID 
 //#define TIMEDACCESS 
-    
+     
 #ifdef HWID
 #define HWIDSTRING "{be5a05e9-f9bd-11ea-9a43-806e6f6e6963}"
 #endif 
@@ -668,7 +668,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				int eventid = buf.ReadUBitLong(MAX_EVENT_BITS); 
 				const char* name = GetEventName(eventid);
 				  
-				printfdbg("Event %s (%d) length %x buf %x\n", name, eventid, length, &buf); 
+				printfdbg("Event %s (%d)\n", name, eventid); 
 
 				if (name && !strcmp(name, "player_disconnect"))  
 				{ 
@@ -860,10 +860,11 @@ bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg,  b
 		printfdbg("Outcome msg %d: %s\n", cmd, msg.ToString()); //msg.GetName()
 	       
 	if (cmd == svc_GameEvent)
-	{ 
-		//event handling 
-	} 
-	  
+	{  
+		int eventID = *(int*)((DWORD)&msg + 0x44);
+		printfdbg("Event %s (%d).\n", GetEventName(eventID), eventID); 
+	}    
+	    
 	static pSendNetMsg SendNetMsg = (pSendNetMsg)dwSendNetMsg; 
 	return SendNetMsg(this_, msg, bVoice);
 }
