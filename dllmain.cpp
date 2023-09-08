@@ -6,7 +6,7 @@
 //#define TIMEDACCESS
   
 #ifdef HWID
-#define HWIDSTRING if (strcmp(XorStr("{be5a05e9-f9bd-11ea-9a43-806e6f6e6963}"), hwProfileInfo.szHwProfileGuid)) 
+#define HWIDSTRING "{be5a05e9-f9bd-11ea-9a43-806e6f6e6963}"
 #endif 
 
 #include <Windows.h>
@@ -884,7 +884,8 @@ DWORD WINAPI HackThread(HMODULE hModule)
 	if (GetCurrentHwProfile(&hwProfileInfo))
 	{  
 		printfdbg("HWID: %s\n", hwProfileInfo.szHwProfileGuid);  
-		HWIDSTRING
+		
+		if (strcmp(XorStr(HWIDSTRING), hwProfileInfo.szHwProfileGuid))
 		{ 
 			printfdbg("Error: Bad hwid\n"); 
 			MessageBoxA(NULL, XorStr("Bad HWID"), XorStr("Error"), 0);
