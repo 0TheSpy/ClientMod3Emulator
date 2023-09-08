@@ -1,10 +1,10 @@
 // dllmain.cpp : Defines the entry point for the DLL application.
 #define _CRT_SECURE_NO_WARNINGS
 #define CLIENT 
-#define DEBUG  
+#define DEBUG   
 //#define HWID 
 //#define TIMEDACCESS 
-     
+       
 #ifdef HWID
 #define HWIDSTRING "{be5a05e9-f9bd-11ea-9a43-806e6f6e6963}"
 #endif 
@@ -198,6 +198,9 @@ bool __fastcall Hooked_PrepareSteamConnectResponse(DWORD* ecx, void* edx, int ke
 #define	svc_PacketEntities		26	
 #define	svc_UserMessage		23	
 #define svc_GetCvarValue 31
+
+#define svc_Sounds 17
+#define svc_TempEntities 27 
 
 #define clc_Move 9
 #define clc_ListenEvents 12
@@ -426,31 +429,7 @@ static bool IsSafeFileToDownload(const char* pFilename)
 	// Word.
 	return true;
 }
-
-
  
-/*
-bool SVC_GameEventList::WriteToBuffer(bf_write& buffer)
-{
-	Assert(m_nNumEvents > 0);
-
-	m_nLength = m_DataOut.GetNumBitsWritten();
-
-	buffer.WriteUBitLong(GetType(), NETMSG_TYPE_BITS);
-	buffer.WriteUBitLong(m_nNumEvents, MAX_EVENT_BITS);
-	buffer.WriteUBitLong(m_nLength, 20);
-	return buffer.WriteBits(m_DataOut.GetData(), m_nLength);
-}
-
-bool SVC_GameEventList::ReadFromBuffer(bf_read& buffer)
-{
-	m_nNumEvents = buffer.ReadUBitLong(MAX_EVENT_BITS);
-	m_nLength = buffer.ReadUBitLong(20);
-	m_DataIn = buffer;
-	return buffer.SeekRelative(m_nLength); 
-}
-*/
-  
 
 class CGameEventCallback
 {
@@ -531,7 +510,6 @@ bool ProcessControlMessage(INetChannel* chan, int cmd, bf_read& buf)
 		return false;
 	}
 
-	 
 	if (cmd == net_File) 
 	{  
 		unsigned int transferID = buf.ReadUBitLong(32); 
@@ -693,7 +671,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 					buf.ReadString(databuf, sizeof(databuf));  
 					continue; 
 				} 
-				   
+
 				buf = backup;
 			}
 
@@ -751,7 +729,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				}  
 			}
 			 
-			if (cmd != net_Tick && cmd != svc_PacketEntities && cmd != svc_UserMessage && cmd != clc_Move)
+			if (cmd != net_Tick && cmd != svc_PacketEntities && cmd != svc_UserMessage && cmd != clc_Move && cmd != svc_Sounds && cmd != svc_TempEntities)
 				printfdbg("Income msg %d from %s: %s\n", cmd, pThis->GetAddress() , netmsg->ToString());
 			   
 #ifndef CLIENT
@@ -842,7 +820,7 @@ void __fastcall hkWriteListenEventList(CGameEventManager* _this, void* edx, int 
 		} 
 	}
 	 
-	printfdbg("WriteListenEventList: Total %d events listened. Bitset (%x): ", totalListened, msg + 0x10);
+	printfdbg("WriteListenEventList: Total %d events listened. Bitset: ", totalListened); 
 	for (int i = 0; i < 0x10; i++)
 		printfdbg("%08x ", *(uint*)(msg + 0x10 + i * 4)); 
 	printfdbg("\n");
@@ -860,8 +838,8 @@ bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg,  b
 		printfdbg("Outcome msg %d: %s\n", cmd, msg.ToString()); //msg.GetName()
 	       
 	if (cmd == svc_GameEvent)
-	{  
-		int eventID = *(int*)((DWORD)&msg + 0x44);
+	{   
+		short eventID = *(int*)((DWORD)&msg + 0x44);
 		printfdbg("Event %s (%d).\n", GetEventName(eventID), eventID); 
 	}    
 	    
