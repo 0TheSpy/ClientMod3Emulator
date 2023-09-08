@@ -32,7 +32,7 @@
 #include "convar.h"
  
 #include "XorStr.h"
- 
+  
 #include <GameUI/iGameConsole.h>
 
 #pragma comment(lib, "detours.lib")
@@ -983,7 +983,11 @@ DWORD WINAPI HackThread(HMODULE hModule)
 
 	while (true)
 	{ 
+#ifdef CLIENT
 		if (GetAsyncKeyState(VK_DELETE))  break;
+#else
+		if (GetAsyncKeyState(VK_END))  break;
+#endif
 
 #ifdef TIMEDACCESS
 		if (!CheckTime())
@@ -1043,7 +1047,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
     case DLL_THREAD_DETACH:
     case DLL_PROCESS_DETACH:
         break;
-    }
+    } 
     return TRUE;
 }
 
