@@ -1,7 +1,7 @@
 // dllmain.cpp : Defines the entry point for the DLL application.
 #define _CRT_SECURE_NO_WARNINGS
 #define CLIENT 
-#define DEBUG
+#define DEBUG 
 //#define HWID
 //#define TIMEDACCESS
   
@@ -769,7 +769,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				if (msgmsg->m_ConVars.Count() > 1)
 					for (int i = 0; i < msgmsg->m_ConVars.Count(); i++)
 						printfdbg("NET_SetConVar %d %s -> %s\n", i, msgmsg->m_ConVars[i].name, msgmsg->m_ConVars[i].value); 
-			} 
+			}  
 
 			if (cmd == clc_ListenEvents)
 			{  
@@ -778,6 +778,11 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 					if (msgmsg->m_EventArray.Get(i)) { 
 						printfdbg("clc_ListenEvents %d: %s\n", i, GetEventName(i)); 
 					} 
+
+				printfdbg("clc_ListenEvents Bitset: " );
+				for (int i = 0; i < 0x10; i++)
+					printfdbg("%08x ", *(uint*)((int)netmsg + 0x10 + i * 4));
+				printfdbg("\n"); 
 			}  
 #endif 
 
@@ -842,10 +847,10 @@ void __fastcall hkWriteListenEventList(CGameEventManager* _this, void* edx, int 
 				printfdbg("Listening Event %d: %s %x\n", uVar5, _descriptor, *(uint*)(msg + 0x10 + (uVar5 >> 5) * 4));
 				totalListened++;
 			}
-		}
+		} 
 	}
-
-	printfdbg("WriteListenEventList: Total %d events listened. Bitset: ", totalListened); 
+	 
+	printfdbg("WriteListenEventList: Total %d events listened. Bitset (%x): ", totalListened, msg + 0x10);
 	for (int i = 0; i < 0x10; i++)
 		printfdbg("%08x ", *(uint*)(msg + 0x10 + i * 4)); 
 	printfdbg("\n");
