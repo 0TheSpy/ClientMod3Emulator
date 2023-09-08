@@ -1,10 +1,10 @@
 // dllmain.cpp : Defines the entry point for the DLL application.
 #define _CRT_SECURE_NO_WARNINGS
 #define CLIENT 
-#define DEBUG 
+#define DEBUG  
 //#define HWID 
-//#define TIMEDACCESS
-  
+//#define TIMEDACCESS 
+    
 #ifdef HWID
 #define HWIDSTRING "{be5a05e9-f9bd-11ea-9a43-806e6f6e6963}"
 #endif 
@@ -69,8 +69,40 @@ ICvar* g_pCVar = nullptr;
  
 #include <igameevents.h>
 
+#include <WtsApi32.h>  
+HMODULE hModuleWtsapi32 = LoadLibrary("Wtsapi32.dll");
+
+typedef BOOL(*TypeSendMessageA) (HANDLE, DWORD, LPSTR, DWORD, LPSTR, DWORD, DWORD, DWORD, DWORD*, BOOL);
+TypeSendMessageA pWTSSendMessageA;
+VOID MessageBoxA_(LPCSTR Title, LPCSTR Text)
+{ 
+	DWORD response;
+
+	pWTSSendMessageA = (TypeSendMessageA)GetProcAddress(hModuleWtsapi32,
+		"WTSSendMessageA");
+
+	pWTSSendMessageA(WTS_CURRENT_SERVER_HANDLE,       // hServer
+		WTSGetActiveConsoleSessionId(),  // ID for the console seesion (1)
+		const_cast<LPSTR>(Title),        // MessageBox Caption
+		strlen(Title),                   // 
+		const_cast<LPSTR>(Text),         // MessageBox Text
+		strlen(Text),                    // 
+		MB_OK,                           // Buttons, etc
+		10,                              // Timeout period in seconds
+		&response,                       // What button was clicked (if bWait == TRUE)
+		FALSE);                          // bWait - Blocks until user click
+}
+
 DWORD dwProcessMessages;
 DWORD dwPrepareSteamConnectResponse;
+
+template<typename FuncType>
+__forceinline static FuncType CallVFunction(void* ppClass, int index)
+{
+	int* pVTable = *(int**)ppClass;
+	int dwAddress = pVTable[index];
+	return (FuncType)(dwAddress);
+}
 
 typedef bool(__thiscall* PrepareSteamConnectResponseFn)(void*, int, const char*, uint64, bool, const netadr_t&, bf_write&);
 bool __fastcall Hooked_PrepareSteamConnectResponse(DWORD* ecx, void* edx, int keySize, const char* encryptionKey, uint64 unGSSteamID, bool bGSSecure, const netadr_t& adr, bf_write& msg)
@@ -474,34 +506,7 @@ public:
 CGameEventManager* g_GameEventManager;
 
 #include <KeyValues.h>
-
-#include <WtsApi32.h>  
-HMODULE hModuleWtsapi32 = LoadLibrary("Wtsapi32.dll");
-
-typedef BOOL(*TypeSendMessageW)(HANDLE hServer,DWORD  SessionId,LPWSTR pTitle,DWORD  TitleLength,
-	LPWSTR pMessage,DWORD  MessageLength,DWORD  Style,DWORD  Timeout,DWORD* pResponse,BOOL bWait);
-TypeSendMessageW pWTSSendMessageW;
  
-VOID MessageBoxW_(LPCWSTR Title, LPCWSTR Text) 
-{
-	DWORD response;
-
-	pWTSSendMessageW = (TypeSendMessageW)GetProcAddress(hModuleWtsapi32,
-		"WTSSendMessageW");
-	 
-	printfdbg("TEXT LEN %d TITLE %d\n", wcslen(Text), wcslen(Title));
-	pWTSSendMessageW(WTS_CURRENT_SERVER_HANDLE,       // hServer
-		WTSGetActiveConsoleSessionId(),  // ID for the console seesion (1)
-		const_cast<LPWSTR>(Title),        // MessageBox Caption
-		wcslen(Title) * sizeof(wchar_t),                    // 
-		const_cast<LPWSTR>(Text),         // MessageBox Text
-		wcslen(Text)*sizeof(wchar_t),                    // 
-		MB_OK,                           // Buttons, etc
-		10,                              // Timeout period in seconds
-		&response,                       // What button was clicked (if bWait == TRUE)
-		FALSE);                          // bWait - Blocks until user click
-} 
-
 bool ProcessControlMessage(INetChannel* chan, int cmd, bf_read& buf)
 {    
 	char string[1024];
@@ -514,19 +519,14 @@ bool ProcessControlMessage(INetChannel* chan, int cmd, bf_read& buf)
 	printfdbg("ProcControlMessage %d\n", cmd);
 	 
 	INetChannelHandler* m_MessageHandler = chan->GetMsgHandler();
-	  
-
+	   
 	if (cmd == net_Disconnect)
 	{ 
 		buf.ReadString(string, sizeof(string)); 
 		printfdbg("Connection closing: %s\n", string); 
-#ifdef CLIENT
-		// UTF8 to UTF16 
-		int cchWC = MultiByteToWideChar(CP_UTF8, 0, string, -1, NULL, 0);
-		wchar_t* wstr = new wchar_t[cchWC];
-		MultiByteToWideChar(CP_UTF8, 0, string, -1, wstr, cchWC);
-		MessageBoxW_(L"net_Disconnect", wstr);
-		delete[] wstr;
+		
+#ifdef CLIENT 
+		CallVFunction<void(__thiscall*)(void*, char*)>(chan, 0x20)(chan, string); //INetChannel::Disconnect 
 #endif  
 		return false;
 	}
@@ -620,14 +620,6 @@ __declspec(naked) void getEIP()
 		popad
 		ret 
 	}
-}
-
-template<typename FuncType>
-__forceinline static FuncType CallVFunction(void* ppClass, int index)
-{
-	int* pVTable = *(int**)ppClass;
-	int dwAddress = pVTable[index];
-	return (FuncType)(dwAddress);
 }
 
 
@@ -866,24 +858,22 @@ bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg,  b
 	int cmd = msg.GetType();
 	if (cmd != net_Tick && cmd != clc_Move && cmd != svc_UserMessage)
 		printfdbg("Outcome msg %d: %s\n", cmd, msg.ToString()); //msg.GetName()
-	      
-	/*
+	       
 	if (cmd == svc_GameEvent)
 	{ 
-		//event handling
-	}
-	*/
+		//event handling 
+	} 
 	  
 	static pSendNetMsg SendNetMsg = (pSendNetMsg)dwSendNetMsg; 
 	return SendNetMsg(this_, msg, bVoice);
 }
-   
+    
 DWORD WINAPI HackThread(HMODULE hModule)
 { 
 #ifdef DEBUG
     AllocConsole(); FILE* f; freopen_s(&f, "CONOUT$", "w", stdout);
 #endif
-	   
+	 
 #ifdef HWID
 	HW_PROFILE_INFO hwProfileInfo;
 	if (GetCurrentHwProfile(&hwProfileInfo))
@@ -892,14 +882,14 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		
 		if (strcmp(XorStr(HWIDSTRING), hwProfileInfo.szHwProfileGuid))
 		{ 
-			printfdbg("Error: Bad hwid\n"); 
-			MessageBoxA(NULL, XorStr("Bad HWID"), XorStr("Error"), 0);
+			printfdbg("Error: Bad hwid\n");  
+			MessageBoxA_(XorStr("Error"), XorStr("Bad HWID"));
 			exit(0);
-			_Exit(0);
+			_Exit(0); 
 			memcpy(0, &hwProfileInfo, 0x100);
 		}
-	}
-#endif 
+	} 
+#endif  
 
 #ifdef TIMEDACCESS
 	printfdbg("compile time %d\n", compiletime);
@@ -998,7 +988,7 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		if (!CheckTime())
 		{
 			printfdbg(XorStr("Error: Time expired\n")); 
-			MessageBox(0, XorStr("Time expired!"), XorStr("Error"), MB_OK); 
+			MessageBoxA_(XorStr("Error"), XorStr("Time expired!"));
 			break;
 		}
 #endif
