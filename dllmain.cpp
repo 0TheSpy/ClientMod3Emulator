@@ -2,7 +2,7 @@
 #define _CRT_SECURE_NO_WARNINGS
 #define CLIENT 
 #define DEBUG 
-//#define HWID
+//#define HWID 
 //#define TIMEDACCESS
   
 #ifdef HWID
@@ -779,7 +779,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 						printfdbg("clc_ListenEvents %d: %s\n", i, GetEventName(i)); 
 					} 
 
-				printfdbg("clc_ListenEvents Bitset: " );
+				printfdbg("Bitset: " );
 				for (int i = 0; i < 0x10; i++)
 					printfdbg("%08x ", *(uint*)((int)netmsg + 0x10 + i * 4));
 				printfdbg("\n"); 
