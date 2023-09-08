@@ -4,7 +4,7 @@
 #define DEBUG   
 //#define HWID 
 //#define TIMEDACCESS 
-       
+        
 #ifdef HWID
 #define HWIDSTRING "{be5a05e9-f9bd-11ea-9a43-806e6f6e6963}"
 #endif 
@@ -39,7 +39,7 @@
 #include "detours.h"
 #include "sigscan.h"
  
-#pragma comment(lib, "mysqlcppconn.lib")
+//#pragma comment(lib, "mysqlcppconn.lib")
 #pragma comment(lib, "public/tier0.lib")
 #pragma comment(lib, "public/tier1.lib")
 #pragma comment(lib, "public/vstdlib.lib")
