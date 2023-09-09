@@ -824,7 +824,7 @@ void __fastcall hkWriteListenEventList(CGameEventManager* _this, void* edx, int 
 	 
 	printfdbg("WriteListenEventList: Total %d events listened. Bitset: ", totalListened); 
 	for (int i = 0; i < 0x10; i++)
-		printfdbg("%08x ", *(uint*)(msg + 0x10 + i * 4)); 
+		printfdbg("%08x ", *(uint*)(msg + 0x10 + i * 4)); //bits 0cc8a1c5 00000e0e 00003e60 
 	printfdbg("\n");
 	 
 	return;
@@ -841,8 +841,8 @@ bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg,  b
 	       
 	if (cmd == svc_GameEvent)
 	{   
-		short eventID = *(int*)((DWORD)&msg + 0x44);
-		printfdbg("Event %s (%d).\n", GetEventName(eventID), eventID); 
+		byte eventID = *(DWORD*)((DWORD)&msg + 0x44);
+		printfdbg("Event %s (%d).\n", GetEventName(eventID), eventID);  
 	}    
 	    
 	static pSendNetMsg SendNetMsg = (pSendNetMsg)dwSendNetMsg; 
@@ -967,7 +967,7 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		memcpy(&oldDscmsg, (PVOID)(dwDisconnectMessage), 4);
 		memcpy((PVOID)(dwDisconnectMessage), &dscmsg, 4); // CBaseClientState::Disconnect
 	}
-
+	 
 	while (true)
 	{
 		 
