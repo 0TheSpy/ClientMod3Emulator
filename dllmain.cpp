@@ -1,13 +1,14 @@
 // dllmain.cpp : Defines the entry point for the DLL application.
 #define _CRT_SECURE_NO_WARNINGS
-#define CLIENT 
 #define DEBUG   
 //#define HWID 
 //#define TIMEDACCESS 
         
+bool srcds = false;
+
 #ifdef HWID
 #define HWIDSTRING "{be5a05e9-f9bd-11ea-9a43-806e6f6e6963}"
-#endif 
+#endif  
 
 #include <Windows.h>
 #include <iostream>  
@@ -503,10 +504,10 @@ bool ProcessControlMessage(INetChannel* chan, int cmd, bf_read& buf)
 	{ 
 		buf.ReadString(string, sizeof(string)); 
 		printfdbg("Connection closing: %s\n", string); 
-		
-#ifdef CLIENT 
-		CallVFunction<void(__thiscall*)(void*, char*)>(chan, 0x20)(chan, string); //INetChannel::Disconnect 
-#endif  
+		 
+		if (!srcds)
+			CallVFunction<void(__thiscall*)(void*, char*)>(chan, 0x20)(chan, string); //INetChannel::Disconnect 
+ 
 		return false;
 	}
 
@@ -731,30 +732,31 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 			 
 			if (cmd != net_Tick && cmd != svc_PacketEntities && cmd != svc_UserMessage && cmd != clc_Move && cmd != svc_Sounds && cmd != svc_TempEntities)
 				printfdbg("Income msg %d from %s: %s\n", cmd, pThis->GetAddress() , netmsg->ToString());
-			   
-#ifndef CLIENT
-			if (cmd == net_SetConVar) 
-			{ 
-				NET_SetConVar* msgmsg = (NET_SetConVar*)netmsg; 
-				if (msgmsg->m_ConVars.Count() > 1)
-					for (int i = 0; i < msgmsg->m_ConVars.Count(); i++)
-						printfdbg("NET_SetConVar %d %s -> %s\n", i, msgmsg->m_ConVars[i].name, msgmsg->m_ConVars[i].value); 
-			}  
+			    
+			if (srcds) 
+			{
+				if (cmd == net_SetConVar)
+				{
+					NET_SetConVar* msgmsg = (NET_SetConVar*)netmsg;
+					if (msgmsg->m_ConVars.Count() > 1)
+						for (int i = 0; i < msgmsg->m_ConVars.Count(); i++)
+							printfdbg("NET_SetConVar %d %s -> %s\n", i, msgmsg->m_ConVars[i].name, msgmsg->m_ConVars[i].value);
+				}
 
-			if (cmd == clc_ListenEvents)
-			{  
-				CLC_ListenEvents* msgmsg = (CLC_ListenEvents*)netmsg;  
-				for (int i = 0; i < MAX_EVENT_NUMBER; i++)
-					if (msgmsg->m_EventArray.Get(i)) { 
-						printfdbg("clc_ListenEvents %d: %s\n", i, GetEventName(i)); 
-					} 
+				if (cmd == clc_ListenEvents)
+				{
+					CLC_ListenEvents* msgmsg = (CLC_ListenEvents*)netmsg;
+					for (int i = 0; i < MAX_EVENT_NUMBER; i++)
+						if (msgmsg->m_EventArray.Get(i)) {
+							printfdbg("clc_ListenEvents %d: %s\n", i, GetEventName(i));
+						}
 
-				printfdbg("Bitset: " );
-				for (int i = 0; i < 0x10; i++)
-					printfdbg("%08x ", *(uint*)((int)netmsg + 0x10 + i * 4));
-				printfdbg("\n"); 
-			}  
-#endif 
+					printfdbg("Bitset: ");
+					for (int i = 0; i < 0x10; i++)
+						printfdbg("%08x ", *(uint*)((int)netmsg + 0x10 + i * 4));
+					printfdbg("\n");
+				}
+			}
 
 			if (!netmsg->Process())
 			{
@@ -848,26 +850,33 @@ bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg,  b
 }
     
 DWORD WINAPI HackThread(HMODULE hModule)
-{ 
+{
 #ifdef DEBUG
-    AllocConsole(); FILE* f; freopen_s(&f, "CONOUT$", "w", stdout);
+	AllocConsole(); FILE* f; freopen_s(&f, "CONOUT$", "w", stdout);
 #endif
-	 
+
+	TCHAR szExeFileName[MAX_PATH];
+	GetModuleFileName(NULL, szExeFileName, MAX_PATH);
+	string path = string(szExeFileName);
+	string exe = path.substr(path.find_last_of("\\") + 1, path.size());
+	srcds = !strcmp(exe.c_str(), XorStr("srcds.exe"));
+	printfdbg("srcds.exe? %d\n", srcds); 
+
 #ifdef HWID
 	HW_PROFILE_INFO hwProfileInfo;
 	if (GetCurrentHwProfile(&hwProfileInfo))
-	{  
-		printfdbg("HWID: %s\n", hwProfileInfo.szHwProfileGuid);  
-		
+	{
+		printfdbg("HWID: %s\n", hwProfileInfo.szHwProfileGuid);
+
 		if (strcmp(XorStr(HWIDSTRING), hwProfileInfo.szHwProfileGuid))
-		{ 
-			printfdbg("Error: Bad hwid\n");  
+		{
+			printfdbg("Error: Bad hwid\n");
 			MessageBoxA_(XorStr("Error"), XorStr("Bad HWID"));
 			exit(0);
-			_Exit(0); 
+			_Exit(0);
 			memcpy(0, &hwProfileInfo, 0x100);
 		}
-	} 
+	}
 #endif  
 
 #ifdef TIMEDACCESS
@@ -879,94 +888,100 @@ DWORD WINAPI HackThread(HMODULE hModule)
 #endif
 
 	printfdbg(XorStr("ClientMod 3.0 Emulator\nOriginal code: InFro, updated by Spy\nCredits to cssandroid & atryrkakiv\n"));
-	 
+
 	SigScan scan;
-	
+
 	g_GameEventManager = (CGameEventManager*)GetInterface("engine.dll", "GAMEEVENTSMANAGER002");
-	  
-#ifdef CLIENT
-	DWORD dwEngine = (DWORD)GetModuleHandleA("engine.dll");
-	IGameConsole* g_pGameConsole = (IGameConsole*)GetInterface(XorStr("gameui.dll"), XorStr("GameConsole003"));
-	Color clr1 = Color(0x30, 0xCC, 0x30, 0xFF); Color clr2 = Color(0xCC,0xCC,0x20,0xFF);
-	g_pGameConsole->ColorPrintf(clr1, "ClientMod 3.0 Emulator\nOriginal code: ");
-	g_pGameConsole->ColorPrintf(clr2, "InFro");
-	g_pGameConsole->ColorPrintf(clr1, ", updated by ");
-	g_pGameConsole->ColorPrintf(clr2, "Spy\n");
-	g_pGameConsole->ColorPrintf(clr1, "Credits to ");
-	g_pGameConsole->ColorPrintf(clr2, "cssandroid ");
-	g_pGameConsole->ColorPrintf(clr1, "and ");
-	g_pGameConsole->ColorPrintf(clr2, "atryrkakiv\n");
 	 
-	g_pCVar = GetCVarIF();
-	printfdbg("g_pCVar %x\n", g_pCVar);
-	IVEngineClient* g_pEngineClient = (IVEngineClient*)GetInterface("engine.dll", "VEngineClient012");
-	g_pEngineClient->ExecuteClientCmd("setinfo cm_steamid 1337; setinfo cm_steamid_random 1; setinfo cm_version \"3.0.0.9035\""); 
-	ConVar* var1 = g_pCVar->FindVar("cm_steamid"); ConVar* var2 = g_pCVar->FindVar("cm_steamid_random"); ConVar* var3 = g_pCVar->FindVar("cm_version");
-	var1->m_nFlags = 537001984; var2->m_nFlags = 537001984; var3->m_nFlags = 537001984;    //FCVAR_PROTECTED
-	   
-	//g_pEngineClient->ExecuteClientCmd("setinfo se_lkblox 0; setinfo se_autobunnyhopping 0; setinfo se_disablebunnyhopping 0; setinfo e_viewmodel_right 0; setinfo e_viewmodel_fov 0; setinfo e_viewmodel_up 0;");
-	   
-    dwPrepareSteamConnectResponse = scan.FindPattern(XorStr("engine.dll"), XorStr("\x81\xEC\x00\x00\x00\x00\x56\x8B\xF1\x8B\x0D\x00\x00\x00\x00\x8B\x01\xFF\x50\x24"), XorStr("xx????xxxxx????xxxxx")); //engine.dll+5D50
-	dwBuildConVarUpdateMessage = scan.FindPattern(XorStr("engine.dll"), XorStr("\xE8\x00\x00\x00\x00\x8D\x54\x24\x3C"), XorStr("x????xxxx"));
-	dwBuildConVarUpdateMessage += 0x9719;
-	
-#endif
-	
+	if (!srcds) {
+		DWORD dwEngine = (DWORD)GetModuleHandleA("engine.dll");
+		IGameConsole* g_pGameConsole = (IGameConsole*)GetInterface(XorStr("gameui.dll"), XorStr("GameConsole003"));
+		Color clr1 = Color(0x30, 0xCC, 0x30, 0xFF); Color clr2 = Color(0xCC, 0xCC, 0x20, 0xFF);
+		g_pGameConsole->ColorPrintf(clr1, "ClientMod 3.0 Emulator\nOriginal code: ");
+		g_pGameConsole->ColorPrintf(clr2, "InFro");
+		g_pGameConsole->ColorPrintf(clr1, ", updated by ");
+		g_pGameConsole->ColorPrintf(clr2, "Spy\n");
+		g_pGameConsole->ColorPrintf(clr1, "Credits to ");
+		g_pGameConsole->ColorPrintf(clr2, "cssandroid ");
+		g_pGameConsole->ColorPrintf(clr1, "and ");
+		g_pGameConsole->ColorPrintf(clr2, "atryrkakiv\n");
+
+		g_pCVar = GetCVarIF();
+		printfdbg("g_pCVar %x\n", g_pCVar);
+		IVEngineClient* g_pEngineClient = (IVEngineClient*)GetInterface("engine.dll", "VEngineClient012");
+		g_pEngineClient->ExecuteClientCmd("setinfo cm_steamid 1337; setinfo cm_steamid_random 1; setinfo cm_version \"3.0.0.9035\"");
+		ConVar* var1 = g_pCVar->FindVar("cm_steamid"); ConVar* var2 = g_pCVar->FindVar("cm_steamid_random"); ConVar* var3 = g_pCVar->FindVar("cm_version");
+		var1->m_nFlags = 537001984; var2->m_nFlags = 537001984; var3->m_nFlags = 537001984;    //FCVAR_PROTECTED
+
+		//g_pEngineClient->ExecuteClientCmd("setinfo se_lkblox 0; setinfo se_autobunnyhopping 0; setinfo se_disablebunnyhopping 0; setinfo e_viewmodel_right 0; setinfo e_viewmodel_fov 0; setinfo e_viewmodel_up 0;");
+
+		dwPrepareSteamConnectResponse = scan.FindPattern(XorStr("engine.dll"), XorStr("\x81\xEC\x00\x00\x00\x00\x56\x8B\xF1\x8B\x0D\x00\x00\x00\x00\x8B\x01\xFF\x50\x24"), XorStr("xx????xxxxx????xxxxx")); //engine.dll+5D50
+		dwBuildConVarUpdateMessage = scan.FindPattern(XorStr("engine.dll"), XorStr("\xE8\x00\x00\x00\x00\x8D\x54\x24\x3C"), XorStr("x????xxxx"));
+		dwBuildConVarUpdateMessage += 0x9719;
+	}
+
 	dwProcessMessages = scan.FindPattern(XorStr("engine.dll"), XorStr("\x83\xEC\x2C\x53\x55\x89\x4C\x24\x10"), XorStr("xxxxxxxxx"));
 
 	printfdbg("dwPrepareSteamConnectResponse %x\n", dwPrepareSteamConnectResponse);
 
-#ifdef CLIENT
-	printfdbg("dwBuildConVarUpdateMessage %x\n", dwBuildConVarUpdateMessage);
-	printfdbg("dwProcessMessages %x\n", dwProcessMessages);
+	DWORD dwWriteListenEventList;
+	if (!srcds) {
+		printfdbg("dwBuildConVarUpdateMessage %x\n", dwBuildConVarUpdateMessage);
+		printfdbg("dwProcessMessages %x\n", dwProcessMessages);
 
-	NC = scan.FindPattern(XorStr("engine.dll"), XorStr("\x00\xc7\x44\x24\x08\x0\x0\x0\x0\xc7\x84\x24"), XorStr("xxxxx????xxx")) + 5;
-	NC = (DWORD) * (PVOID*)NC;
-	printfdbg("NC %x\n", NC); 
-	
-	DWORD dwWriteListenEventList = scan.FindPattern(XorStr("engine.dll"), XorStr("\x51\x8b\x44\x24\x08\x83\xc0\x10"), XorStr("xxxxxxxx")); //dwEngine + 0xADA80; 
-	printfdbg("dwWriteListenEventList %x\n", dwWriteListenEventList);
-#endif
+		NC = scan.FindPattern(XorStr("engine.dll"), XorStr("\x00\xc7\x44\x24\x08\x0\x0\x0\x0\xc7\x84\x24"), XorStr("xxxxx????xxx")) + 5;
+		NC = (DWORD) * (PVOID*)NC;
+		printfdbg("NC %x\n", NC);
+
+		dwWriteListenEventList = scan.FindPattern(XorStr("engine.dll"), XorStr("\x51\x8b\x44\x24\x08\x83\xc0\x10"), XorStr("xxxxxxxx")); //dwEngine + 0xADA80; 
+		printfdbg("dwWriteListenEventList %x\n", dwWriteListenEventList);
+	}
+
 	dwSendNetMsg = scan.FindPattern(XorStr("engine.dll"), XorStr("\xcc\x56\x8b\xf1\x8d\x4e\x74"), XorStr("xxxxxxx")) + 1; //dwEngine + 0xff950;
 	printfdbg("dwSendNetMsg %x\n", dwSendNetMsg);
-	  
-    DetourTransactionBegin();
-    DetourUpdateThread(GetCurrentThread());
-#ifdef CLIENT
-    DetourAttach(&(LPVOID&)dwPrepareSteamConnectResponse, &Hooked_PrepareSteamConnectResponse); 
-    DetourAttach(&(LPVOID&)dwBuildConVarUpdateMessage, &Hooked_BuildConVarUpdateMessage); 
-	DetourAttach(&(LPVOID&)(dwWriteListenEventList), (PBYTE)hkWriteListenEventList); 
-#endif
-	DetourAttach(&(LPVOID&)dwProcessMessages, &Hooked_ProcessMessages); 
+
+	DetourTransactionBegin();
+	DetourUpdateThread(GetCurrentThread());
+
+	if (!srcds) {
+		DetourAttach(&(LPVOID&)dwPrepareSteamConnectResponse, &Hooked_PrepareSteamConnectResponse);
+		DetourAttach(&(LPVOID&)dwBuildConVarUpdateMessage, &Hooked_BuildConVarUpdateMessage);
+		DetourAttach(&(LPVOID&)(dwWriteListenEventList), (PBYTE)hkWriteListenEventList);
+	}
+
+	DetourAttach(&(LPVOID&)dwProcessMessages, &Hooked_ProcessMessages);
 	DetourAttach(&(LPVOID&)(dwSendNetMsg), (PBYTE)hkSendNetMsg);
-    DetourTransactionCommit();  
-   
+	DetourTransactionCommit();
+
 	//ConCommandBaseMgr::OneTimeInit(&g_ConVarAccessor);  
 
-#ifdef CLIENT
-	DWORD dwDisconnectMessage = scan.FindPattern(XorStr("engine.dll"), XorStr("\x74\x14\x8b\x01\x68\x0\x0\x0\x0\xff\x90"), XorStr("xxxxx????xx")) + 5; //dwEngine + 0x61cc; 
-	printfdbg("dwDisconnectMessage %x\n", dwDisconnectMessage); 
-	 
-	char* dscmsg = "Disconnect by ClientMod\0";
-	 
-	DWORD oldProtect; DWORD oldDscmsg; //make scan
-	VirtualProtect((PVOID)(dwDisconnectMessage), 4, PAGE_EXECUTE_READWRITE, &oldProtect);
-	memcpy(&oldDscmsg, (PVOID)(dwDisconnectMessage), 4);
-	memcpy((PVOID)(dwDisconnectMessage), &dscmsg, 4); // CBaseClientState::Disconnect
-#endif
+	DWORD dwDisconnectMessage;  DWORD oldDscmsg;
+	if (!srcds) {
+		dwDisconnectMessage = scan.FindPattern(XorStr("engine.dll"), XorStr("\x74\x14\x8b\x01\x68\x0\x0\x0\x0\xff\x90"), XorStr("xxxxx????xx")) + 5; //dwEngine + 0x61cc; 
+		printfdbg("dwDisconnectMessage %x\n", dwDisconnectMessage);
+
+		char* dscmsg = "Disconnect by ClientMod\0";
+
+		DWORD oldProtect;
+		VirtualProtect((PVOID)(dwDisconnectMessage), 4, PAGE_EXECUTE_READWRITE, &oldProtect);
+		memcpy(&oldDscmsg, (PVOID)(dwDisconnectMessage), 4);
+		memcpy((PVOID)(dwDisconnectMessage), &dscmsg, 4); // CBaseClientState::Disconnect
+	}
 
 	while (true)
-	{ 
-#ifdef CLIENT
-		if (GetAsyncKeyState(VK_DELETE))  break;
-#else
-		if (GetAsyncKeyState(VK_END))  break;
-#endif
+	{
+		 
+		if (!srcds && GetAsyncKeyState(VK_DELETE))
+			break;
+		
+		if (srcds && GetAsyncKeyState(VK_END))
+			break;
+		
 
 #ifdef TIMEDACCESS
 		if (!CheckTime())
 		{
-			printfdbg(XorStr("Error: Time expired\n")); 
+			printfdbg(XorStr("Error: Time expired\n"));
 			MessageBoxA_(XorStr("Error"), XorStr("Time expired!"));
 			break;
 		}
@@ -976,29 +991,29 @@ DWORD WINAPI HackThread(HMODULE hModule)
 	}
 
 	printfdbg("Unhooking...\n");
-	 
-#ifdef CLIENT
-	memcpy((PVOID)(dwDisconnectMessage), &oldDscmsg, 4);
-#endif
 
-	DetourTransactionBegin(); 
+	if (!srcds)
+		memcpy((PVOID)(dwDisconnectMessage), &oldDscmsg, 4);
+
+
+	DetourTransactionBegin();
 	DetourUpdateThread(GetCurrentThread());
-#ifdef CLIENT
-	DetourDetach(&(LPVOID&)dwPrepareSteamConnectResponse, reinterpret_cast<BYTE*>(Hooked_PrepareSteamConnectResponse)); 
-	DetourDetach(&(LPVOID&)dwBuildConVarUpdateMessage, reinterpret_cast<BYTE*>(Hooked_BuildConVarUpdateMessage)); 
-	DetourDetach(&(LPVOID&)dwWriteListenEventList, reinterpret_cast<BYTE*>(hkWriteListenEventList));
-#endif
+	if (!srcds) {
+		DetourDetach(&(LPVOID&)dwPrepareSteamConnectResponse, reinterpret_cast<BYTE*>(Hooked_PrepareSteamConnectResponse));
+		DetourDetach(&(LPVOID&)dwBuildConVarUpdateMessage, reinterpret_cast<BYTE*>(Hooked_BuildConVarUpdateMessage));
+		DetourDetach(&(LPVOID&)dwWriteListenEventList, reinterpret_cast<BYTE*>(hkWriteListenEventList));
+	}
 	DetourDetach(&(LPVOID&)dwProcessMessages, reinterpret_cast<BYTE*>(Hooked_ProcessMessages));
 	DetourDetach(&(LPVOID&)(dwSendNetMsg), reinterpret_cast<BYTE*>(hkSendNetMsg));
 
-	DetourTransactionCommit();  
-	 
-#ifdef CLIENT
+	DetourTransactionCommit();
+
+	if (!srcds) {
 #ifdef DEBUG
-	if (f) fclose(f);
-	FreeConsole();
+		if (f) fclose(f);
+		FreeConsole();
 #endif
-#endif 
+	}
 	FreeLibraryAndExitThread(hModule, 0);
 	
 	return 0; 
