@@ -369,32 +369,35 @@ void Hooked_BuildConVarUpdateMessage(NET_SetConVar* cvarMsg, int flags, bool non
 	 
 	NET_SetConVar::cvar_t acvar;
 
-	strncpy(acvar.name, XorStr("clantag"), MAX_OSPATH);
-	strncpy(acvar.value, XorStr("spy"), MAX_OSPATH);
-	cvarMsg->m_ConVars.AddToTail(acvar);
-	
-	//strncpy(acvar.name, XorStr("name"), MAX_OSPATH);
-	//strncpy(acvar.value, XorStr("koronavirus"), MAX_OSPATH);
-	//cvarMsg->m_ConVars.AddToTail(acvar);
-	 
-	strncpy(acvar.name, XorStr("_client_version"), MAX_OSPATH);
-	 
-	strncpy(acvar.value, g_pCVar->FindVar("cm_version")->GetString(), MAX_OSPATH);
-	//strncpy(acvar.value, XorStr("3.0.0.9035"), MAX_OSPATH); 
-	cvarMsg->m_ConVars.AddToTail(acvar); 
+	if (g_pCVar->FindVar("cm_enabled")->GetInt())
+	{
+		strncpy(acvar.name, XorStr("clantag"), MAX_OSPATH);
+		strncpy(acvar.value, XorStr("spy"), MAX_OSPATH);
+		cvarMsg->m_ConVars.AddToTail(acvar);
 
-	strncpy(acvar.name, XorStr("~clientmod"), MAX_OSPATH);
-	strncpy(acvar.value, XorStr("2.0"), MAX_OSPATH); 
+		//strncpy(acvar.name, XorStr("name"), MAX_OSPATH);
+		//strncpy(acvar.value, XorStr("koronavirus"), MAX_OSPATH);
+		//cvarMsg->m_ConVars.AddToTail(acvar);
 
-	cvarMsg->m_ConVars.AddToTail(acvar);
-	 
-	cvarMsg->m_ConVars.RemoveMultipleFromHead(2);
-	    
+		strncpy(acvar.name, XorStr("_client_version"), MAX_OSPATH);
+
+		strncpy(acvar.value, g_pCVar->FindVar("cm_version")->GetString(), MAX_OSPATH);
+		//strncpy(acvar.value, XorStr("3.0.0.9035"), MAX_OSPATH); 
+		cvarMsg->m_ConVars.AddToTail(acvar);
+
+		strncpy(acvar.name, XorStr("~clientmod"), MAX_OSPATH);
+		strncpy(acvar.value, XorStr("2.0"), MAX_OSPATH);
+
+		cvarMsg->m_ConVars.AddToTail(acvar);
+
+		cvarMsg->m_ConVars.RemoveMultipleFromHead(2);
+	}
+
 	//auto s = cvarMsg->m_ConVars.begin();
 	for (int i = 0; i < cvarMsg->m_ConVars.Size(); i++) {
 		printfdbg("%d %s : %s\n", i, cvarMsg->m_ConVars[i].name, cvarMsg->m_ConVars[i].value);
 	}
-	
+	 
 } 
 
 
@@ -689,7 +692,8 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				 
 				if (!strcmp((char*)((DWORD)netmsg + 24) , "cm_steamid") ||
 					!strcmp((char*)((DWORD)netmsg + 24), "cm_steamid_random") ||
-					!strcmp((char*)((DWORD)netmsg + 24), "cm_version") )
+					!strcmp((char*)((DWORD)netmsg + 24), "cm_version") || 
+					!strcmp((char*)((DWORD)netmsg + 24), "cm_enabled")) 
 				{  
 					CLC_RespondCvarValue returnMsg; 
 					  
@@ -908,8 +912,8 @@ DWORD WINAPI HackThread(HMODULE hModule)
 
 		g_pCVar = GetCVarIF();
 		printfdbg("g_pCVar %x\n", g_pCVar);
-		IVEngineClient* g_pEngineClient = (IVEngineClient*)GetInterface("engine.dll", "VEngineClient012");
-		g_pEngineClient->ExecuteClientCmd("setinfo cm_steamid 1337; setinfo cm_steamid_random 1; setinfo cm_version \"3.0.0.9035\"");
+		IVEngineClient* g_pEngineClient = (IVEngineClient*)GetInterface("engine.dll", "VEngineClient012"); 
+		g_pEngineClient->ExecuteClientCmd("setinfo cm_steamid 1337; setinfo cm_steamid_random 1; setinfo cm_enabled 1; setinfo cm_version \"3.0.0.9035\"");
 		ConVar* var1 = g_pCVar->FindVar("cm_steamid"); ConVar* var2 = g_pCVar->FindVar("cm_steamid_random"); ConVar* var3 = g_pCVar->FindVar("cm_version");
 		var1->m_nFlags = 537001984; var2->m_nFlags = 537001984; var3->m_nFlags = 537001984;    //FCVAR_PROTECTED
 
