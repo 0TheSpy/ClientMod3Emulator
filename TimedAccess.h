@@ -119,19 +119,16 @@ int gTime()
 	int read = 0;
 	char* str = (char*)"*/*", buff[1024] = {};
 
-	//HINTERNET inet = InternetOpen("GRB", INTERNET_OPEN_TYPE_PROXY, "http://192.168.56.1:8888", "<local>", 0); //HINTERNET inet = InternetOpen("GRB", INTERNET_OPEN_TYPE_DIRECT, NULL,NULL, 0);
+	//HINTERNET inet = InternetOpen("GRB", INTERNET_OPEN_TYPE_PROXY, "http://192.168.56.1:8888", "<local>", 0); 
 	HINTERNET inet = InternetOpen("GRB", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
 	if (!(inet = InternetConnect(inet, "api.ipgeolocation.io", INTERNET_DEFAULT_HTTPS_PORT, 0, 0, INTERNET_SERVICE_HTTP, 0, 0)))
-		//if (!(inet = InternetConnect(inet, "showcase.api.linx.twenty57.net", INTERNET_DEFAULT_HTTPS_PORT, 0, 0, INTERNET_SERVICE_HTTP, 0, 0)))  //if (!(inet = InternetConnect(inet, "worldtimeapi.org", INTERNET_DEFAULT_HTTP_PORT, 0, 0, INTERNET_SERVICE_HTTP, 0, 0)))
 	{
 		std::cout << "conn failed" << std::endl;
 		return 0;
 	}
 
 	char link[200] = "/timezone?apiKey=8d27e8c544044268867e0170a9ea96df&tz=America/Los_Angeles";
-	//char link[80] = "/UnixTime/tounixtimestamp?datetime=now";  
 
-	//if (!(inet = HttpOpenRequest(inet, "GET", link, "HTTP/1.1", NULL, 0, 0, 0)))
 	if (!(inet = HttpOpenRequest(inet, "GET", link, "HTTP/1.1", NULL, 0, INTERNET_FLAG_SECURE, 0)))
 	{
 		std::cout << "open failed" << std::endl;
@@ -139,8 +136,6 @@ int gTime()
 	}
 
 	TCHAR* szHeaders = (TCHAR*)"Host: api.ipgeolocation.io\r\n"
-		//TCHAR* szHeaders = (TCHAR*)"Host: showcase.api.linx.twenty57.net\r\n"
-
 		"User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:104.0) Gecko/20100101 Firefox/104.0\r\n"
 		"Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8\r\n"
 		"Accept-Language: en-US,en;q=0.5\r\n"
@@ -155,7 +150,6 @@ int gTime()
 		;
 
 	TCHAR szReq[1024] = { };
-
 
 	if (!HttpSendRequest(inet, szHeaders, _tcslen(szHeaders), szReq, strlen(szReq)))// strlen(szReq)
 	{
