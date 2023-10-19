@@ -352,8 +352,7 @@ struct CLC_ClientInfo {
 	uint32 m_nSendTableCRC;
 	bool IsHLTV;
 	uint32	m_nFriendsID;
-	char m_FriendsName[32];
-	//string	m_FriendsName;
+	char m_FriendsName[32]; 
 	uint32 m_nCustomFiles[4]; //CustomFileCRC
 };
 
