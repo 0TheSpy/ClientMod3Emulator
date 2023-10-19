@@ -758,6 +758,12 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 							printfdbg("NET_SetConVar %d %s -> %s\n", i, msgmsg->m_ConVars[i].name, msgmsg->m_ConVars[i].value);
 				}
 
+				if (cmd == clc_ClientInfo)
+				{
+					CLC_ClientInfo* Cl = (CLC_ClientInfo*)netmsg;
+					printfdbg("clc_ClientInfo m_nFriendsID: %x m_FriendsName: %s (%x)\n", Cl->m_nFriendsID, Cl->m_FriendsName, netmsg); 
+				}
+				
 				if (cmd == clc_ListenEvents)
 				{
 					CLC_ListenEvents* msgmsg = (CLC_ListenEvents*)netmsg;
