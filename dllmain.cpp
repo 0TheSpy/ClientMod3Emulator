@@ -203,6 +203,7 @@ bool __fastcall Hooked_PrepareSteamConnectResponse(DWORD* ecx, void* edx, int ke
 #define svc_Sounds 17
 #define svc_TempEntities 27 
 
+#define clc_ClientInfo 8
 #define clc_Move 9
 #define clc_ListenEvents 12
 #define clc_RespondCvarValue 25 
@@ -343,6 +344,17 @@ class CLC_ListenEvents : public CNetMessage
 
 public: 
 	CBitVec<MAX_EVENT_NUMBER> m_EventArray;
+};
+
+struct CLC_ClientInfo {
+	char pad0[0x10];
+	uint32 m_nServerCount;
+	uint32 m_nSendTableCRC;
+	bool IsHLTV;
+	uint32	m_nFriendsID;
+	char m_FriendsName[32];
+	//string	m_FriendsName;
+	uint32 m_nCustomFiles[4]; //CustomFileCRC
 };
 
 typedef void* (__cdecl* tCreateInterface)(const char* name, int* returnCode);
@@ -848,6 +860,14 @@ bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg,  b
 		byte eventID = *(DWORD*)((DWORD)&msg + 0x44);
 		printfdbg("Event %s (%d).\n", GetEventName(eventID), eventID);  
 	}    
+
+	if (cmd == clc_ClientInfo)
+{
+	CLC_ClientInfo* Cl = (CLC_ClientInfo * )&msg; 
+	Cl->m_nFriendsID = 0xDEADBEEF;
+	char FriendsName[] = "Hello, World !";
+	memcpy(Cl->m_FriendsName, FriendsName, sizeof(FriendsName)); 
+}
 	    
 	static pSendNetMsg SendNetMsg = (pSendNetMsg)dwSendNetMsg; 
 	return SendNetMsg(this_, msg, bVoice);
