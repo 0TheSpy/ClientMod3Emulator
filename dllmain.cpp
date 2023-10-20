@@ -105,6 +105,10 @@ __forceinline static FuncType CallVFunction(void* ppClass, int index)
 	return (FuncType)(dwAddress);
 }
 
+#include <random>
+std::default_random_engine generator(time(0));
+std::uniform_int_distribution<uint32_t> distribution(1, MAXINT);
+
 typedef bool(__thiscall* PrepareSteamConnectResponseFn)(void*, int, const char*, uint64, bool, const netadr_t&, bf_write&);
 bool __fastcall Hooked_PrepareSteamConnectResponse(DWORD* ecx, void* edx, int keySize, const char* encryptionKey, uint64 unGSSteamID, bool bGSSecure, const netadr_t& adr, bf_write& msg)
 {
@@ -115,7 +119,7 @@ bool __fastcall Hooked_PrepareSteamConnectResponse(DWORD* ecx, void* edx, int ke
 	srand(time(NULL));
 	int steamid = 0;
 	if (g_pCVar->FindVar("cm_steamid_random")->GetInt())
-		steamid = std::rand() * std::rand();
+		steamid = distribution(generator);   
 	else
 		steamid = g_pCVar->FindVar("cm_steamid")->GetInt();
 
