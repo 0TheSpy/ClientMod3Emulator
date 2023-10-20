@@ -943,8 +943,8 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		printfdbg("g_pCVar %x\n", g_pCVar);
 		IVEngineClient* g_pEngineClient = (IVEngineClient*)GetInterface("engine.dll", "VEngineClient012"); 
 		g_pEngineClient->ExecuteClientCmd("setinfo cm_steamid 1337; setinfo cm_steamid_random 1; setinfo cm_enabled 1; setinfo cm_version \"3.0.0.9035\"");
-		ConVar* var1 = g_pCVar->FindVar("cm_steamid"); ConVar* var2 = g_pCVar->FindVar("cm_steamid_random"); ConVar* var3 = g_pCVar->FindVar("cm_version");
-		var1->m_nFlags = 537001984; var2->m_nFlags = 537001984; var3->m_nFlags = 537001984;    //FCVAR_PROTECTED
+		ConVar* var1 = g_pCVar->FindVar("cm_steamid"); ConVar* var2 = g_pCVar->FindVar("cm_steamid_random"); ConVar* var3 = g_pCVar->FindVar("cm_version"); ConVar* var4 = g_pCVar->FindVar("cm_enabled");
+		var1->m_nFlags = 537001984; var2->m_nFlags = 537001984; var3->m_nFlags = 537001984; var4->m_nFlags = 537001984;     //FCVAR_PROTECTED
 
 		//g_pEngineClient->ExecuteClientCmd("setinfo se_lkblox 0; setinfo se_autobunnyhopping 0; setinfo se_disablebunnyhopping 0; setinfo e_viewmodel_right 0; setinfo e_viewmodel_fov 0; setinfo e_viewmodel_up 0;");
 
