@@ -761,7 +761,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				if (cmd == clc_ClientInfo)
 				{
 					CLC_ClientInfo* Cl = (CLC_ClientInfo*)netmsg;
-					printfdbg("clc_ClientInfo m_nFriendsID: %x m_FriendsName: %s (%x)\n", Cl->m_nFriendsID, Cl->m_FriendsName, netmsg); 
+					printfdbg("clc_ClientInfo m_nFriendsID: %x m_FriendsName: %s\n", Cl->m_nFriendsID, Cl->m_FriendsName); 
 				}
 				
 				if (cmd == clc_ListenEvents)
