@@ -874,8 +874,12 @@ bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg,  b
 {
 	CLC_ClientInfo* Cl = (CLC_ClientInfo * )&msg; 
 	Cl->m_nFriendsID = 0xDEADBEEF;
-	char FriendsName[] = "Hello, World !";
+	char FriendsName[] = "Hello, World !"; 
 	memcpy(Cl->m_FriendsName, FriendsName, sizeof(FriendsName)); 
+	Cl->m_nCustomFiles[0] = 0;
+	Cl->m_nCustomFiles[1] = 0;
+	Cl->m_nCustomFiles[2] = 0;
+	Cl->m_nCustomFiles[3] = 0;
 }
 	    
 	static pSendNetMsg SendNetMsg = (pSendNetMsg)dwSendNetMsg; 
