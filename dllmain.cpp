@@ -897,8 +897,6 @@ bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg,  b
 	return SendNetMsg(this_, msg, bVoice);
 }
 
-typedef ICvar*(*GetCVarIF)();
-GetCVarIF pGetCVarIF;
 
 DWORD WINAPI HackThread(HMODULE hModule)
 {
@@ -957,8 +955,7 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		g_pGameConsole->ColorPrintf(clr1, "and ");
 		g_pGameConsole->ColorPrintf(clr2, "atryrkakiv\n");
 
-		pGetCVarIF = (GetCVarIF)GetProcAddress(GetModuleHandleA("vstdlib.dll"), "GetCVarIF");
-		g_pCVar = pGetCVarIF();
+		g_pCVar = ((ICvar*(*)(void))GetProcAddress(GetModuleHandleA("vstdlib.dll"), "GetCVarIF"))();
 		printfdbg("g_pCVar %x\n", g_pCVar);
 		IVEngineClient* g_pEngineClient = (IVEngineClient*)GetInterface("engine.dll", "VEngineClient012"); 
 		g_pEngineClient->ExecuteClientCmd("setinfo cm_steamid 1337; setinfo cm_steamid_random 1; setinfo cm_enabled 1; setinfo cm_version \"3.0.0.9035\"; setinfo cm_friendsid 3735928559; setinfo cm_friendsname \"Hello World\""); 
