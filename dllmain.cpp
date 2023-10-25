@@ -105,6 +105,7 @@ __forceinline static FuncType CallVFunction(void* ppClass, int index)
 {
 	int* pVTable = *(int**)ppClass;
 	int dwAddress = pVTable[index];
+	printfdbg("vTable %x dwAddr(%x):%x\n", pVTable, index, dwAddress);
 	return (FuncType)(dwAddress);
 }
 
@@ -121,7 +122,7 @@ bool __fastcall Hooked_PrepareSteamConnectResponse(DWORD* ecx, void* edx, int ke
 	static PrepareSteamConnectResponseFn PrepareSteamConnectResponse = (PrepareSteamConnectResponseFn)dwPrepareSteamConnectResponse;
 
 	srand(time(NULL));
-	int steamid = 0;
+	unsigned int steamid = 0;
 	if (g_pCVar->FindVar("cm_steamid_random")->GetInt())
 		steamid = distribution(generator);   
 	else
@@ -404,6 +405,7 @@ void Hooked_BuildConVarUpdateMessage(NET_SetConVar* cvarMsg, int flags, bool non
 
 		strncpy(acvar.value, g_pCVar->FindVar("cm_version")->GetString(), MAX_OSPATH);
 		//strncpy(acvar.value, XorStr("3.0.0.9035"), MAX_OSPATH); 
+		printfdbg("fff %s\n", g_pCVar->FindVar("cm_version")->GetString());
 		cvarMsg->m_ConVars.AddToTail(acvar);
 
 		strncpy(acvar.name, XorStr("~clientmod"), MAX_OSPATH);
@@ -520,15 +522,16 @@ bool ProcessControlMessage(INetChannel* chan, int cmd, bf_read& buf)
 		return true;
 	}
 
-	printfdbg("ProcControlMessage %d\n", cmd);
-	 
-	INetChannelHandler* m_MessageHandler = chan->GetMsgHandler();
-	   
+	printfdbg("ProcControlMessage %d Channel %x\n", cmd, chan);
+	  
+	INetChannelHandler* m_MessageHandler = CallVFunction<INetChannelHandler*(__thiscall*)(void*)>(chan, 46)(chan); //INetChannel::GetMsgHandler  
+
+	printfdbg("go\n");
 	
 	if (cmd == net_Disconnect)
 	{ 
 		buf.ReadString(string, sizeof(string)); 
-		printfdbg("Connection closing: %s\n", string); 
+		printfdbg("Connection closing: %s\n",string); 
 		 
 		if (!srcds)
 			CallVFunction<void(__thiscall*)(void*, char*)>(chan, 0x20)(chan, string); //INetChannel::Disconnect 
@@ -882,16 +885,15 @@ bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg,  b
 	}    
 
 	if (cmd == clc_ClientInfo)
-{
-	CLC_ClientInfo* Cl = (CLC_ClientInfo * )&msg; 
-	Cl->m_nFriendsID = 0xDEADBEEF;
-	char FriendsName[] = "Hello, World !"; 
-	memcpy(Cl->m_FriendsName, FriendsName, sizeof(FriendsName)); 
-	Cl->m_nCustomFiles[0] = 0;
-	Cl->m_nCustomFiles[1] = 0;
-	Cl->m_nCustomFiles[2] = 0;
-	Cl->m_nCustomFiles[3] = 0;
-}
+	{
+		CLC_ClientInfo* Cl = (CLC_ClientInfo*)&msg;
+		Cl->m_nFriendsID = stoul(g_pCVar->FindVar("cm_friendsid")->GetString());
+		strncpy(Cl->m_FriendsName, g_pCVar->FindVar("cm_friendsname")->GetString(), 32);
+		Cl->m_nCustomFiles[0] = 0;
+		Cl->m_nCustomFiles[1] = 0;
+		Cl->m_nCustomFiles[2] = 0;
+		Cl->m_nCustomFiles[3] = 0;
+	}
 	    
 	static pSendNetMsg SendNetMsg = (pSendNetMsg)dwSendNetMsg; 
 	return SendNetMsg(this_, msg, bVoice);
@@ -938,7 +940,7 @@ DWORD WINAPI HackThread(HMODULE hModule)
 	mStartedTime = chrono::system_clock::now();
 #endif
 
-	printfdbg(XorStr("ClientMod 3.0 Emulator\nOriginal code: InFro, updated by Spy\nCredits to cssandroid & atryrkakiv\n"));
+	printfdbg(XorStr("ClientMod 3 Emulator\nOriginal code: InFro, updated by Spy\nCredits to cssandroid & atryrkakiv\n"));
 
 	SigScan scan;
 
@@ -961,9 +963,14 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		g_pCVar = pGetCVarIF();
 		printfdbg("g_pCVar %x\n", g_pCVar);
 		IVEngineClient* g_pEngineClient = (IVEngineClient*)GetInterface("engine.dll", "VEngineClient012"); 
-		g_pEngineClient->ExecuteClientCmd("setinfo cm_steamid 1337; setinfo cm_steamid_random 1; setinfo cm_enabled 1; setinfo cm_version \"3.0.0.9035\""); 
-		ConVar* var1 = g_pCVar->FindVar("cm_steamid"); ConVar* var2 = g_pCVar->FindVar("cm_steamid_random"); ConVar* var3 = g_pCVar->FindVar("cm_version"); ConVar* var4 = g_pCVar->FindVar("cm_enabled");
-		var1->m_nFlags = 537001984; var2->m_nFlags = 537001984; var3->m_nFlags = 537001984; var4->m_nFlags = 537001984;     //FCVAR_PROTECTED
+		g_pEngineClient->ExecuteClientCmd("setinfo cm_steamid 1337; setinfo cm_steamid_random 1; setinfo cm_enabled 1; setinfo cm_version \"3.0.0.9035\"; setinfo cm_friendsid 3735928559; setinfo cm_friendsname \"Hello World\""); 
+		//FCVAR_PROTECTED
+		g_pCVar->FindVar("cm_steamid")->m_nFlags = 537001984;
+		g_pCVar->FindVar("cm_steamid_random")->m_nFlags = 537001984;
+		g_pCVar->FindVar("cm_version")->m_nFlags = 537001984;
+		g_pCVar->FindVar("cm_enabled")->m_nFlags = 537001984;
+		g_pCVar->FindVar("cm_friendsid")->m_nFlags = 537001984;
+		g_pCVar->FindVar("cm_friendsname")->m_nFlags = 537001984;  
 	
 		//g_pEngineClient->ExecuteClientCmd("setinfo se_lkblox 0; setinfo se_autobunnyhopping 0; setinfo se_disablebunnyhopping 0; setinfo e_viewmodel_right 0; setinfo e_viewmodel_fov 0; setinfo e_viewmodel_up 0;");
 
