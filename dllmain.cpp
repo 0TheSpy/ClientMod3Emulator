@@ -3,7 +3,7 @@
 #define DEBUG   
 //#define HWID 
 //#define TIMEDACCESS 
-        
+         
 bool srcds = false;
 
 #ifdef HWID
@@ -12,6 +12,8 @@ bool srcds = false;
 
 #include <Windows.h>
 #include <iostream>  
+
+int (WINAPIV* __vsnprintf)(char*, size_t, const char*, va_list) = _vsnprintf;
 
 #include <dbg.h>
 #include <inetmessage.h>
@@ -42,9 +44,10 @@ bool srcds = false;
  
 //#pragma comment(lib, "mysqlcppconn.lib")
 #pragma comment(lib, "public/tier0.lib")
-#pragma comment(lib, "public/tier1.lib")
+#pragma comment(lib, "public\\tier1.lib")
 #pragma comment(lib, "public/vstdlib.lib")
 #pragma comment(lib, "public/mathlib.lib")
+ 
 
 using namespace std;
  
@@ -114,6 +117,7 @@ bool __fastcall Hooked_PrepareSteamConnectResponse(DWORD* ecx, void* edx, int ke
 {
 	printfdbg("Hooked_PrepareSteamConnectResponse called\n");
 
+	
 	static PrepareSteamConnectResponseFn PrepareSteamConnectResponse = (PrepareSteamConnectResponseFn)dwPrepareSteamConnectResponse;
 
 	srand(time(NULL));
@@ -122,12 +126,13 @@ bool __fastcall Hooked_PrepareSteamConnectResponse(DWORD* ecx, void* edx, int ke
 		steamid = distribution(generator);   
 	else
 		steamid = g_pCVar->FindVar("cm_steamid")->GetInt();
-
+	
 	msg.WriteShort(0x98);
+	
 	msg.WriteLong('S');
 
 	char hwid[64];
-
+	
 	CreateRandomString(hwid, 32);
 	if (!RevSpoofer::Spoof(hwid, steamid))
 		return false;
@@ -182,7 +187,7 @@ bool __fastcall Hooked_PrepareSteamConnectResponse(DWORD* ecx, void* edx, int ke
 		0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 	};
 	msg.WriteBytes(staticEnd, sizeof(staticEnd));
-
+	
 	//hexDump(0, msg.m_pData, msg.GetNumBytesWritten());
 	return true;
 }
@@ -277,6 +282,7 @@ public:
 };
 //
 
+
 typedef enum
 {
 	eQueryCvarValueStatus_ValueIntact = 0,	// It got the value fine.
@@ -284,7 +290,7 @@ typedef enum
 	eQueryCvarValueStatus_NotACvar = 2,		// There's a ConCommand, but it's not a ConVar.
 	eQueryCvarValueStatus_CvarProtected = 3	// The cvar was marked with FCVAR_SERVER_CAN_NOT_QUERY, so the server is not allowed to have its value.
 } EQueryCvarValueStatus;
-
+ 
 typedef int QueryCvarCookie_t;
 
 #define DECLARE_CLC_MESSAGE( name )		\
@@ -487,7 +493,7 @@ CGameEventDescriptor* GetEventDescriptor(CGameEventDescriptor* descriptors, int 
 	}
 	return NULL;
 }
- 
+
 class CGameEventManager;
 
 class SVC_GameEventList : public CNetMessage
@@ -504,7 +510,7 @@ public:
 CGameEventManager* g_GameEventManager;
 
 #include <KeyValues.h>
- 
+
 bool ProcessControlMessage(INetChannel* chan, int cmd, bf_read& buf)
 {    
 	char string[1024];
@@ -518,6 +524,7 @@ bool ProcessControlMessage(INetChannel* chan, int cmd, bf_read& buf)
 	 
 	INetChannelHandler* m_MessageHandler = chan->GetMsgHandler();
 	   
+	
 	if (cmd == net_Disconnect)
 	{ 
 		buf.ReadString(string, sizeof(string)); 
@@ -528,11 +535,14 @@ bool ProcessControlMessage(INetChannel* chan, int cmd, bf_read& buf)
  
 		return false;
 	}
-
+	
 	if (cmd == net_File) 
 	{  
+		
 		unsigned int transferID = buf.ReadUBitLong(32); 
 		buf.ReadString(string, sizeof(string)); 
+		  
+		
 		if (buf.ReadOneBit() != 0 && IsSafeFileToDownload(string))
 		{
 			m_MessageHandler->FileRequested(string, transferID);
@@ -541,9 +551,10 @@ bool ProcessControlMessage(INetChannel* chan, int cmd, bf_read& buf)
 		{
 			m_MessageHandler->FileDenied(string, transferID);
 		} 
+		
 		return true;
 	}
-
+	
 	printfdbg("Netchannel: received bad control cmd %i from %s.\n", cmd, chan->GetAddress());
 	return false;
 }
@@ -671,7 +682,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				{ 
 					char databuf[1024];
 					 
-					int userid = buf.ReadShort();
+					short userid = (short)buf.ReadUBitLong(16);// buf.ReadShort();
 					buf.ReadString(databuf, sizeof(databuf));
 					buf.ReadString(databuf, sizeof(databuf));
 					buf.ReadString(databuf, sizeof(databuf));
@@ -885,7 +896,10 @@ bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg,  b
 	static pSendNetMsg SendNetMsg = (pSendNetMsg)dwSendNetMsg; 
 	return SendNetMsg(this_, msg, bVoice);
 }
-    
+
+typedef ICvar*(*GetCVarIF)();
+GetCVarIF pGetCVarIF;
+
 DWORD WINAPI HackThread(HMODULE hModule)
 {
 #ifdef DEBUG
@@ -943,13 +957,14 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		g_pGameConsole->ColorPrintf(clr1, "and ");
 		g_pGameConsole->ColorPrintf(clr2, "atryrkakiv\n");
 
-		g_pCVar = GetCVarIF();
+		pGetCVarIF = (GetCVarIF)GetProcAddress(GetModuleHandleA("vstdlib.dll"), "GetCVarIF");
+		g_pCVar = pGetCVarIF();
 		printfdbg("g_pCVar %x\n", g_pCVar);
 		IVEngineClient* g_pEngineClient = (IVEngineClient*)GetInterface("engine.dll", "VEngineClient012"); 
-		g_pEngineClient->ExecuteClientCmd("setinfo cm_steamid 1337; setinfo cm_steamid_random 1; setinfo cm_enabled 1; setinfo cm_version \"3.0.0.9035\"");
+		g_pEngineClient->ExecuteClientCmd("setinfo cm_steamid 1337; setinfo cm_steamid_random 1; setinfo cm_enabled 1; setinfo cm_version \"3.0.0.9035\""); 
 		ConVar* var1 = g_pCVar->FindVar("cm_steamid"); ConVar* var2 = g_pCVar->FindVar("cm_steamid_random"); ConVar* var3 = g_pCVar->FindVar("cm_version"); ConVar* var4 = g_pCVar->FindVar("cm_enabled");
 		var1->m_nFlags = 537001984; var2->m_nFlags = 537001984; var3->m_nFlags = 537001984; var4->m_nFlags = 537001984;     //FCVAR_PROTECTED
-
+	
 		//g_pEngineClient->ExecuteClientCmd("setinfo se_lkblox 0; setinfo se_autobunnyhopping 0; setinfo se_disablebunnyhopping 0; setinfo e_viewmodel_right 0; setinfo e_viewmodel_fov 0; setinfo e_viewmodel_up 0;");
 
 		dwPrepareSteamConnectResponse = scan.FindPattern(XorStr("engine.dll"), XorStr("\x81\xEC\x00\x00\x00\x00\x56\x8B\xF1\x8B\x0D\x00\x00\x00\x00\x8B\x01\xFF\x50\x24"), XorStr("xx????xxxxx????xxxxx")); //engine.dll+5D50
@@ -1055,6 +1070,8 @@ DWORD WINAPI HackThread(HMODULE hModule)
 	
 	return 0; 
 }
+
+
 
 BOOL APIENTRY DllMain( HMODULE hModule, 
                        DWORD  ul_reason_for_call,
