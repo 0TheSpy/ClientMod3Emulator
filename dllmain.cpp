@@ -525,9 +525,7 @@ bool ProcessControlMessage(INetChannel* chan, int cmd, bf_read& buf)
 	printfdbg("ProcControlMessage %d Channel %x\n", cmd, chan);
 	  
 	INetChannelHandler* m_MessageHandler = CallVFunction<INetChannelHandler*(__thiscall*)(void*)>(chan, 46)(chan); //INetChannel::GetMsgHandler  
-
-	printfdbg("go\n");
-	
+	 
 	if (cmd == net_Disconnect)
 	{ 
 		buf.ReadString(string, sizeof(string)); 
@@ -887,7 +885,7 @@ bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg,  b
 	if (cmd == clc_ClientInfo)
 	{
 		CLC_ClientInfo* Cl = (CLC_ClientInfo*)&msg;
-		Cl->m_nFriendsID = stoul(g_pCVar->FindVar("cm_friendsid")->GetString());
+		Cl->m_nFriendsID = uint32(atof(g_pCVar->FindVar("cm_friendsid")->GetString())); 
 		strncpy(Cl->m_FriendsName, g_pCVar->FindVar("cm_friendsname")->GetString(), 32);
 		Cl->m_nCustomFiles[0] = 0;
 		Cl->m_nCustomFiles[1] = 0;
@@ -968,10 +966,15 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		g_pCVar->FindVar("cm_steamid")->m_nFlags = 537001984;
 		g_pCVar->FindVar("cm_steamid_random")->m_nFlags = 537001984;
 		g_pCVar->FindVar("cm_version")->m_nFlags = 537001984;
-		g_pCVar->FindVar("cm_enabled")->m_nFlags = 537001984;
-		g_pCVar->FindVar("cm_friendsid")->m_nFlags = 537001984;
+		g_pCVar->FindVar("cm_enabled")->m_nFlags = 537001984; 
 		g_pCVar->FindVar("cm_friendsname")->m_nFlags = 537001984;  
-	
+		auto CvFriendsid = g_pCVar->FindVar("cm_friendsid");
+		CvFriendsid->m_nFlags = 537001984;
+		CvFriendsid->m_bHasMin = true;
+		CvFriendsid->m_fMinVal = 0;
+		CvFriendsid->m_bHasMax = true;
+		CvFriendsid->m_fMaxVal = 4294967295.000000;
+
 		//g_pEngineClient->ExecuteClientCmd("setinfo se_lkblox 0; setinfo se_autobunnyhopping 0; setinfo se_disablebunnyhopping 0; setinfo e_viewmodel_right 0; setinfo e_viewmodel_fov 0; setinfo e_viewmodel_up 0;");
 
 		dwPrepareSteamConnectResponse = scan.FindPattern(XorStr("engine.dll"), XorStr("\x81\xEC\x00\x00\x00\x00\x56\x8B\xF1\x8B\x0D\x00\x00\x00\x00\x8B\x01\xFF\x50\x24"), XorStr("xx????xxxxx????xxxxx")); //engine.dll+5D50
