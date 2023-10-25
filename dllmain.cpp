@@ -117,8 +117,7 @@ typedef bool(__thiscall* PrepareSteamConnectResponseFn)(void*, int, const char*,
 bool __fastcall Hooked_PrepareSteamConnectResponse(DWORD* ecx, void* edx, int keySize, const char* encryptionKey, uint64 unGSSteamID, bool bGSSecure, const netadr_t& adr, bf_write& msg)
 {
 	printfdbg("Hooked_PrepareSteamConnectResponse called\n");
-
-	
+	 
 	static PrepareSteamConnectResponseFn PrepareSteamConnectResponse = (PrepareSteamConnectResponseFn)dwPrepareSteamConnectResponse;
 
 	srand(time(NULL));
@@ -615,22 +614,13 @@ const char* GetEventName(int eventid)
 DWORD eip_;
 __declspec(naked) void getEIP()
 {
-	__asm
-	{
-		pushad
-		mov eax,[esp+0x20]  
-		mov [eip_], eax
-	}
-	 
+	__asm pushad
+	__asm mov eax, [esp + 0x20]
+	__asm mov[eip_], eax
 	printfdbg("EIP %x\n", eip_);
-
-	__asm
-	{ 
-		popad
-		ret 
-	}
+	__asm popad
+	__asm ret
 }
-
 
 DWORD NC;
 
@@ -716,11 +706,13 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 			{
 				SVC_GetCvarValue* msgmsg = (SVC_GetCvarValue*)netmsg;
 				//printfdbg("svc_GetCvarValue (%x) %d %s\n", netmsg, msgmsg->m_iCookie, msgmsg->m_szCvarName); 
-				 
+				   
 				if (!strcmp((char*)((DWORD)netmsg + 24) , "cm_steamid") ||
 					!strcmp((char*)((DWORD)netmsg + 24), "cm_steamid_random") ||
 					!strcmp((char*)((DWORD)netmsg + 24), "cm_version") || 
-					!strcmp((char*)((DWORD)netmsg + 24), "cm_enabled")) 
+					!strcmp((char*)((DWORD)netmsg + 24), "cm_enabled") ||
+					!strcmp((char*)((DWORD)netmsg + 24), "cm_friendsname") ||
+					!strcmp((char*)((DWORD)netmsg + 24), "cm_friendsid"))
 				{  
 					CLC_RespondCvarValue returnMsg; 
 					  
