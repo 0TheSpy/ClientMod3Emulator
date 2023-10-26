@@ -53,6 +53,7 @@ using namespace std;
 #endif
  
 ICvar* g_pCVar = nullptr; 
+void* CUserMessages = nullptr;
 
 #include "Emulators/Setti.h"
 #include "Public/StrUtils.h"
@@ -702,8 +703,8 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				assert(math::BitsToBytes(data->dataLengthInBits) <= MAX_USER_MSG_DATA); 
 				char databuf[1024];
 				buf.ReadBits(databuf, dataLengthInBits);  
-				  
-				if (msgType >= 34)
+				   
+				if (msgType >= (*(DWORD**)CUserMessages)[5])
 				{
 					printfdbg("UserMsg Rejected: type %d dataLengthInBits %d\n", msgType, dataLengthInBits);
 					continue;
@@ -769,16 +770,16 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 					 
 					return false;
 				}  
-			} 
-			    
-			if (cmd == svc_FixAngle || cmd == svc_SetPause)
-			{
-				printfdbg("Message rejected\n");
-				return false; 
-			}
+			}  
 
 			if (srcds) 
 			{
+				if (cmd == svc_FixAngle || cmd == svc_SetPause)
+				{
+					printfdbg("Message rejected\n");
+					return false;
+				}
+
 				if (cmd == net_SetConVar)
 				{
 					NET_SetConVar* msgmsg = (NET_SetConVar*)netmsg;
@@ -889,10 +890,16 @@ bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg,  b
 	if (cmd != net_Tick && cmd != clc_Move && cmd != svc_UserMessage)
 		printfdbg("Outcome msg %d: %s\n", cmd, msg.ToString()); //msg.GetName()
 	       
+	if (cmd == svc_UserMessage)
+	{
+		byte usermsgID = *(DWORD*)((DWORD)&msg + 0x10);
+		printfdbg("svc_UserMessage %d %s\n", usermsgID, ((char* (__thiscall*)(void*, int))dwGetUserMessageName)((*(DWORD**)CUserMessages), usermsgID));
+	}
+
 	if (cmd == svc_GameEvent)
 	{   
-		byte eventID = *(DWORD*)((DWORD)&msg + 0x44);
-		printfdbg("Event %s (%d).\n", GetEventName(eventID), eventID);  
+		byte eventID = *(DWORD*)((DWORD)&msg + 0x44); 
+		printfdbg("Event %s (%d).\n", GetEventName(eventID), eventID);   
 	}    
 
 	if (cmd == clc_ClientInfo)
@@ -919,7 +926,7 @@ bool __fastcall hkDispatchUserMessage(DWORD* this_, void* edx, int msg_type, bf_
 		return false;
 
 	printfdbg("DispatchUserMessage: %d %s\n", msg_type, ((char* (__thiscall*)(void*, int))dwGetUserMessageName)(this_, msg_type));
-
+	
 	static pDispatchUserMessage DispatchUserMessage = (pDispatchUserMessage)dwDispatchUserMessage;
 	return DispatchUserMessage(this_, msg_type, msg_data);
 }
@@ -937,6 +944,10 @@ DWORD WINAPI HackThread(HMODULE hModule)
 	string exe = path.substr(path.find_last_of("\\") + 1, path.size());
 	srcds = !strcmp(exe.c_str(), XorStr("srcds.exe"));
 	printfdbg("srcds.exe? %d\n", srcds); 
+
+	char client_dll[] = "client.dll";
+	if (srcds) strcpy(client_dll, "server.dll");
+	
 
 #ifdef TIMEDACCESS
 	printfdbg("compile time %d\n", compiletime);
@@ -1005,6 +1016,13 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		dwWriteListenEventList = scan.FindPattern(XorStr("engine.dll"), XorStr("\x51\x8b\x44\x24\x08\x83\xc0\x10"), XorStr("xxxxxxxx")); //dwEngine + 0xADA80; 
 		printfdbg("dwWriteListenEventList %x\n", dwWriteListenEventList);
 	}
+	 
+	CUserMessages = reinterpret_cast<LPVOID>(*(PVOID*)(scan.FindPattern(XorStr(client_dll),XorStr("\x8b\x0d\xae\xae\xae\xae\x6a\xae\x68\xae\xae\xae\xae\xe8"), XorStr("xx????x?x????x")) + 2));
+	printfdbg("CUserMessages_ %x\n", CUserMessages);
+	dwDispatchUserMessage = scan.FindPattern(XorStr(client_dll), XorStr("\x8b\x44\x24\xae\x83\xec\xae\x85\xc0\x0f\x8c"), XorStr("xxx?xx?xxxx"));
+	printfdbg("dwDispatchUserMessage %x\n", dwDispatchUserMessage);
+	dwGetUserMessageName = scan.FindPattern(XorStr(client_dll), XorStr("\x56\x8b\x74\x24\xae\x85\xf6\x57\x8b\xf9\x7c\xae\x3b\x77\xae\x7c\xae\x56\x68\xae\xae\xae\xae\xff\x15\xae\xae\xae\xae\x83\xc4\xae\x8b\x4f\xae\x8d\x04\x76\x8b\x44\xc1"), XorStr("xxxx?xxxxxx?xx?x?xx????xx????xx?xx?xxxxxx"));
+	printfdbg("dwGetUserMessageName %x\n", dwGetUserMessageName);
 
 	dwSendNetMsg = scan.FindPattern(XorStr("engine.dll"), XorStr("\xcc\x56\x8b\xf1\x8d\x4e\x74"), XorStr("xxxxxxx")) + 1; //dwEngine + 0xff950;
 	printfdbg("dwSendNetMsg %x\n", dwSendNetMsg);
@@ -1012,12 +1030,7 @@ DWORD WINAPI HackThread(HMODULE hModule)
 	DetourTransactionBegin();
 	DetourUpdateThread(GetCurrentThread());
 
-	if (!srcds) {
-		dwDispatchUserMessage = scan.FindPattern(XorStr("client.dll"), XorStr("\x8b\x44\x24\xae\x83\xec\xae\x85\xc0\x0f\x8c"), XorStr("xxx?xx?xxxx"));
-		printfdbg("dwDispatchUserMessage %x\n", dwDispatchUserMessage);
-		dwGetUserMessageName = scan.FindPattern(XorStr("client.dll"), XorStr("\x56\x8b\x74\x24\xae\x85\xf6\x57\x8b\xf9\x7c\xae\x3b\x77\xae\x7c\xae\x56\x68\xae\xae\xae\xae\xff\x15\xae\xae\xae\xae\x83\xc4\xae\x8b\x4f\xae\x8d\x04\x76\x8b\x44\xc1"), XorStr("xxxx?xxxxxx?xx?x?xx????xx????xx?xx?xxxxxx"));
-		printfdbg("dwGetUserMessageName %x\n", dwGetUserMessageName);
-
+	if (!srcds) { 
 		DetourAttach(&(LPVOID&)dwPrepareSteamConnectResponse, &Hooked_PrepareSteamConnectResponse);
 		DetourAttach(&(LPVOID&)dwBuildConVarUpdateMessage, &Hooked_BuildConVarUpdateMessage);
 		DetourAttach(&(LPVOID&)(dwWriteListenEventList), (PBYTE)hkWriteListenEventList);
