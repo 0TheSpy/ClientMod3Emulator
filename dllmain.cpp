@@ -670,14 +670,15 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				printfdbg("Event %s (%d)\n", name, eventid); 
 
 				if (name && !strcmp(name, "player_disconnect"))  
-				{ 
-					char databuf[1024];
-					 
+				{  
 					short userid = (short)buf.ReadUBitLong(16);// buf.ReadShort();
-					buf.ReadString(databuf, sizeof(databuf));
-					printfdbg("player_disconnect %d buffer %s\n", userid,databuf);
-					buf.ReadString(databuf, sizeof(databuf));
-					buf.ReadString(databuf, sizeof(databuf));
+					char reason[1024];
+					buf.ReadString(reason, sizeof(reason)); 
+					char name[1024];
+					buf.ReadString(name, sizeof(name)); 
+					char xuid[1024];
+					buf.ReadString(xuid, sizeof(xuid));
+					printfdbg("player_disconnect %d name %s reason %s xuid %s\n", userid, name, reason, xuid);
 					
 					//if (userid < 1)
 						continue;
