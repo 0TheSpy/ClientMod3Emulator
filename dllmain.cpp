@@ -44,7 +44,6 @@ int (WINAPIV* __vsnprintf)(char*, size_t, const char*, va_list) = _vsnprintf;
 #pragma comment(lib, "public/vstdlib.lib")
 #pragma comment(lib, "public/mathlib.lib")
  
-
 using namespace std;
  
 #ifdef DEBUG
@@ -63,12 +62,14 @@ ICvar* g_pCVar = nullptr;
 #include "Emulators/RevEmu2013.h"
 #include <time.h>
 
+#include <igameevents.h>
+
 #ifdef TIMEDACCESS
 #include "TimedAccess.h"
 #endif
  
-#include <igameevents.h>
 
+#ifdef TIMEDACCESS
 #include <WtsApi32.h>  
 HMODULE hModuleWtsapi32 = LoadLibrary("Wtsapi32.dll");
 
@@ -92,6 +93,7 @@ VOID MessageBoxA_(LPCSTR Title, LPCSTR Text)
 		&response,                       // What button was clicked (if bWait == TRUE)
 		FALSE);                          // bWait - Blocks until user click
 }
+#endif
 
 DWORD dwProcessMessages;
 DWORD dwPrepareSteamConnectResponse;
