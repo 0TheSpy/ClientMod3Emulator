@@ -520,11 +520,11 @@ bool ProcessControlMessage(INetChannel* chan, int cmd, bf_read& buf)
 	{
 		return true;
 	}
-
-	printfdbg("ProcControlMessage %d Channel %x\n", cmd, chan);
-	  
-	INetChannelHandler* m_MessageHandler = CallVFunction<INetChannelHandler*(__thiscall*)(void*)>(chan, 46)(chan); //INetChannel::GetMsgHandler  
 	 
+	INetChannelHandler* m_MessageHandler = CallVFunction<INetChannelHandler*(__thiscall*)(void*)>(chan, 45)(chan); //INetChannel::GetMsgHandler  
+	
+	printfdbg("ProcControlMessage %d Channel %x Handler %x\n", cmd, chan, m_MessageHandler);
+
 	if (cmd == net_Disconnect)
 	{ 
 		buf.ReadString(string, sizeof(string)); 
@@ -537,21 +537,21 @@ bool ProcessControlMessage(INetChannel* chan, int cmd, bf_read& buf)
 	}
 	
 	if (cmd == net_File) 
-	{  
-		
+	{   
 		unsigned int transferID = buf.ReadUBitLong(32); 
 		buf.ReadString(string, sizeof(string)); 
-		  
-		
+		      
 		if (buf.ReadOneBit() != 0 && IsSafeFileToDownload(string))
 		{
+			printfdbg("FileRequested %s\n", string);
 			m_MessageHandler->FileRequested(string, transferID);
 		}
 		else
 		{
+			printfdbg("FileDenied %s\n", string);
 			m_MessageHandler->FileDenied(string, transferID);
 		} 
-		
+		 
 		return true;
 	}
 	
@@ -1011,6 +1011,7 @@ DWORD WINAPI HackThread(HMODULE hModule)
 
 	//ConCommandBaseMgr::OneTimeInit(&g_ConVarAccessor);  
 
+#ifdef DISCMSG
 	DWORD dwDisconnectMessage;  DWORD oldDscmsg;
 	if (!srcds) {
 		dwDisconnectMessage = scan.FindPattern(XorStr("engine.dll"), XorStr("\x74\x14\x8b\x01\x68\x0\x0\x0\x0\xff\x90"), XorStr("xxxxx????xx")) + 5; //dwEngine + 0x61cc; 
@@ -1023,6 +1024,7 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		memcpy(&oldDscmsg, (PVOID)(dwDisconnectMessage), 4);
 		memcpy((PVOID)(dwDisconnectMessage), &dscmsg, 4); // CBaseClientState::Disconnect
 	}
+#endif
 	 
 	while (true)
 	{
@@ -1048,9 +1050,10 @@ DWORD WINAPI HackThread(HMODULE hModule)
 
 	printfdbg("Unhooking...\n");
 
+#ifdef DISCMSG
 	if (!srcds)
 		memcpy((PVOID)(dwDisconnectMessage), &oldDscmsg, 4);
-
+#endif
 
 	DetourTransactionBegin();
 	DetourUpdateThread(GetCurrentThread());
