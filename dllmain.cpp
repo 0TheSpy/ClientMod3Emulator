@@ -1,6 +1,7 @@
 // dllmain.cpp : Defines the entry point for the DLL application.
 #define _CRT_SECURE_NO_WARNINGS
 #define DEBUG   
+#define DISCMSG
 //#define HWID 
 //#define TIMEDACCESS 
          
@@ -757,7 +758,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 			    
 			if (cmd == svc_FixAngle || cmd == svc_SetPause)
 			{
-				printfdbg("Message aborted\n");
+				printfdbg("Message rejected\n");
 				return false; 
 			}
 
