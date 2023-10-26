@@ -217,6 +217,8 @@ bool __fastcall Hooked_PrepareSteamConnectResponse(DWORD* ecx, void* edx, int ke
 #define clc_ListenEvents 12
 #define clc_RespondCvarValue 25 
 
+#define svc_FixAngle 19
+
 class CNetMessage : public INetMessage
 {
 public:
@@ -699,10 +701,12 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				return false;
 			} 
 			 
+			if (cmd != net_Tick && cmd != svc_PacketEntities && cmd != svc_UserMessage && cmd != clc_Move && cmd != svc_Sounds && cmd != svc_TempEntities)
+				printfdbg("Income msg %d from %s: %s\n", cmd, pThis->GetAddress(), netmsg->ToString());
+
 			if (cmd == svc_GetCvarValue)
 			{
-				SVC_GetCvarValue* msgmsg = (SVC_GetCvarValue*)netmsg;
-				//printfdbg("svc_GetCvarValue (%x) %d %s\n", netmsg, msgmsg->m_iCookie, msgmsg->m_szCvarName); 
+				SVC_GetCvarValue* msgmsg = (SVC_GetCvarValue*)netmsg; 
 				   
 				if (!strcmp((char*)((DWORD)netmsg + 24) , "cm_steamid") ||
 					!strcmp((char*)((DWORD)netmsg + 24), "cm_steamid_random") ||
@@ -748,11 +752,14 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 					 
 					return false;
 				}  
-			}
-			 
-			if (cmd != net_Tick && cmd != svc_PacketEntities && cmd != svc_UserMessage && cmd != clc_Move && cmd != svc_Sounds && cmd != svc_TempEntities)
-				printfdbg("Income msg %d from %s: %s\n", cmd, pThis->GetAddress() , netmsg->ToString());
+			} 
 			    
+			if (cmd == svc_FixAngle)  
+			{
+				printfdbg("svc_FixAngle aborted\n");
+				return false; 
+			}
+
 			if (srcds) 
 			{
 				if (cmd == net_SetConVar)
@@ -781,7 +788,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 					for (int i = 0; i < 0x10; i++)
 						printfdbg("%08x ", *(uint*)((int)netmsg + 0x10 + i * 4));
 					printfdbg("\n");
-				}
+				}  
 			}
 
 			if (!netmsg->Process())
