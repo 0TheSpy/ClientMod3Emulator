@@ -22,7 +22,14 @@ public:
 	{
 		MODULEINFO mInfo = GetModuleInfo((char*)module);
 		DWORD base = (DWORD)mInfo.lpBaseOfDll;
-		DWORD size = (DWORD)mInfo.SizeOfImage;
+		DWORD size = (DWORD)mInfo.SizeOfImage; 
+
+		if (!strcmp(module, "server.dll"))
+		{ 
+			base = 0x22000000; 
+			size = 0x641fff;
+		}
+
 		DWORD patternLength = (DWORD)strlen(mask);
 
 		for (DWORD i = 0; i < size - patternLength; i++)
