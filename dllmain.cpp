@@ -703,10 +703,12 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				auto dataLengthInBits = buf.ReadUBitLong(11);
 				assert(math::BitsToBytes(data->dataLengthInBits) <= MAX_USER_MSG_DATA); 
 				char databuf[1024];
-				buf.ReadBits(databuf, dataLengthInBits); 
-				printfdbg("msgType %d dataLengthInBits %d\n", msgType, dataLengthInBits);
-				if (msgType == 37) 
+				buf.ReadBits(databuf, dataLengthInBits);  
+				if (msgType == 37)
+				{
+					printfdbg("msgType %d dataLengthInBits %d\n", msgType, dataLengthInBits);
 					continue;
+				}
 				buf = backup;
 			}
 
