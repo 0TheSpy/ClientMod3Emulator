@@ -694,7 +694,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 
 				buf = backup;
 			}
-
+			 
 			if (cmd == svc_UserMessage)
 			{
 				auto msgType = buf.ReadByte();
@@ -1008,29 +1008,27 @@ DWORD WINAPI HackThread(HMODULE hModule)
 
 	dwSendNetMsg = scan.FindPattern(XorStr("engine.dll"), XorStr("\xcc\x56\x8b\xf1\x8d\x4e\x74"), XorStr("xxxxxxx")) + 1; //dwEngine + 0xff950;
 	printfdbg("dwSendNetMsg %x\n", dwSendNetMsg);
-
-	dwDispatchUserMessage = scan.FindPattern(XorStr("client.dll"), XorStr("\x8b\x44\x24\xae\x83\xec\xae\x85\xc0\x0f\x8c"), XorStr("xxx?xx?xxxx"));
-	printfdbg("dwDispatchUserMessage %x\n", dwDispatchUserMessage);
-	
-	dwGetUserMessageName = scan.FindPattern(XorStr("client.dll"), XorStr("\x56\x8b\x74\x24\xae\x85\xf6\x57\x8b\xf9\x7c\xae\x3b\x77\xae\x7c\xae\x56\x68\xae\xae\xae\xae\xff\x15\xae\xae\xae\xae\x83\xc4\xae\x8b\x4f\xae\x8d\x04\x76\x8b\x44\xc1"), XorStr("xxxx?xxxxxx?xx?x?xx????xx????xx?xx?xxxxxx"));
-	printfdbg("dwGetUserMessageName %x\n", dwGetUserMessageName);
 	 
-
 	DetourTransactionBegin();
 	DetourUpdateThread(GetCurrentThread());
 
 	if (!srcds) {
+		dwDispatchUserMessage = scan.FindPattern(XorStr("client.dll"), XorStr("\x8b\x44\x24\xae\x83\xec\xae\x85\xc0\x0f\x8c"), XorStr("xxx?xx?xxxx"));
+		printfdbg("dwDispatchUserMessage %x\n", dwDispatchUserMessage);
+		dwGetUserMessageName = scan.FindPattern(XorStr("client.dll"), XorStr("\x56\x8b\x74\x24\xae\x85\xf6\x57\x8b\xf9\x7c\xae\x3b\x77\xae\x7c\xae\x56\x68\xae\xae\xae\xae\xff\x15\xae\xae\xae\xae\x83\xc4\xae\x8b\x4f\xae\x8d\x04\x76\x8b\x44\xc1"), XorStr("xxxx?xxxxxx?xx?x?xx????xx????xx?xx?xxxxxx"));
+		printfdbg("dwGetUserMessageName %x\n", dwGetUserMessageName);
+
 		DetourAttach(&(LPVOID&)dwPrepareSteamConnectResponse, &Hooked_PrepareSteamConnectResponse);
 		DetourAttach(&(LPVOID&)dwBuildConVarUpdateMessage, &Hooked_BuildConVarUpdateMessage);
 		DetourAttach(&(LPVOID&)(dwWriteListenEventList), (PBYTE)hkWriteListenEventList);
+		DetourAttach(&(LPVOID&)(dwDispatchUserMessage), (PBYTE)hkDispatchUserMessage);
 	}
 
 	DetourAttach(&(LPVOID&)dwProcessMessages, &Hooked_ProcessMessages);
 	DetourAttach(&(LPVOID&)(dwSendNetMsg), (PBYTE)hkSendNetMsg);
-
-	DetourAttach(&(LPVOID&)(dwDispatchUserMessage), (PBYTE)hkDispatchUserMessage);
+	 
 	DetourTransactionCommit();
-
+	 
 	//ConCommandBaseMgr::OneTimeInit(&g_ConVarAccessor);  
 
 #ifdef DISCMSG
@@ -1047,7 +1045,8 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		memcpy((PVOID)(dwDisconnectMessage), &dscmsg, 4); // CBaseClientState::Disconnect
 	}
 #endif
-	 
+	
+
 	while (true)
 	{
 		 
@@ -1082,11 +1081,12 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		DetourDetach(&(LPVOID&)dwPrepareSteamConnectResponse, reinterpret_cast<BYTE*>(Hooked_PrepareSteamConnectResponse));
 		DetourDetach(&(LPVOID&)dwBuildConVarUpdateMessage, reinterpret_cast<BYTE*>(Hooked_BuildConVarUpdateMessage));
 		DetourDetach(&(LPVOID&)dwWriteListenEventList, reinterpret_cast<BYTE*>(hkWriteListenEventList));
+		DetourDetach(&(LPVOID&)(dwDispatchUserMessage), reinterpret_cast<BYTE*>(hkDispatchUserMessage));
 	}
 	DetourDetach(&(LPVOID&)dwProcessMessages, reinterpret_cast<BYTE*>(Hooked_ProcessMessages));
 	DetourDetach(&(LPVOID&)(dwSendNetMsg), reinterpret_cast<BYTE*>(hkSendNetMsg));
 
-	DetourDetach(&(LPVOID&)(dwDispatchUserMessage), reinterpret_cast<BYTE*>(hkDispatchUserMessage)); 
+	
 
 	DetourTransactionCommit();
 
