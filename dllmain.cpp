@@ -2,14 +2,9 @@
 #define _CRT_SECURE_NO_WARNINGS
 #define DEBUG   
 #define DISCMSG
-//#define HWID 
 //#define TIMEDACCESS 
          
 bool srcds = false;
-
-#ifdef HWID
-#define HWIDSTRING "{be5a05e9-f9bd-11ea-9a43-806e6f6e6963}"
-#endif  
 
 #include <Windows.h>
 #include <iostream>  
@@ -320,6 +315,21 @@ private:
 	IServerMessageHandler *m_pMessageHandler;\
 	bool Process() { return m_pMessageHandler->Process##name( this ); }\
 
+class CGameEventManager;
+
+class SVC_GameEventList : public CNetMessage
+{
+public:
+	DECLARE_SVC_MESSAGE(GameEventList);
+
+	int			m_nNumEvents;
+	int			m_nLength;
+	bf_read		m_DataIn;
+	bf_write	m_DataOut;
+};
+
+CGameEventManager* g_GameEventManager;
+
 class SVC_GameEvent : public CNetMessage
 {
 	DECLARE_SVC_MESSAGE(GameEvent);
@@ -496,21 +506,6 @@ CGameEventDescriptor* GetEventDescriptor(CGameEventDescriptor* descriptors, int 
 	return NULL;
 }
 
-class CGameEventManager;
-
-class SVC_GameEventList : public CNetMessage
-{
-public:
-	DECLARE_SVC_MESSAGE(GameEventList);
-
-	int			m_nNumEvents;
-	int			m_nLength;
-	bf_read		m_DataIn;
-	bf_write	m_DataOut;
-};
- 
-CGameEventManager* g_GameEventManager;
-
 #include <KeyValues.h>
 
 bool ProcessControlMessage(INetChannel* chan, int cmd, bf_read& buf)
@@ -671,16 +666,16 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				printfdbg("Event %s (%d)\n", name, eventid); 
 
 				if (name && !strcmp(name, "player_disconnect"))  
-				{  
+				{      
 					short userid = (short)buf.ReadUBitLong(16);// buf.ReadShort();
 					char reason[1024];
 					buf.ReadString(reason, sizeof(reason)); 
 					char name[1024];
 					buf.ReadString(name, sizeof(name)); 
-					char xuid[1024];
-					buf.ReadString(xuid, sizeof(xuid));
-					printfdbg("player_disconnect %d name %s reason %s xuid %s\n", userid, name, reason, xuid);
-					
+					char networkid[1024];
+					buf.ReadString(networkid, sizeof(networkid));
+					printfdbg("player_disconnect %d name %s reason %s networkid %s\n", userid, name, reason, networkid);
+					  
 					//if (userid < 1)
 						continue;
 				}
@@ -711,8 +706,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				}
 				buf = backup;
 			}
-
-
+			 
 			if (!netmsg->ReadFromBuffer(buf))
 			{
 				printfdbg("Netchannel: failed reading message %s from %s.\n", netmsg->GetName(), pThis->GetAddress());
@@ -925,23 +919,6 @@ DWORD WINAPI HackThread(HMODULE hModule)
 	srcds = !strcmp(exe.c_str(), XorStr("srcds.exe"));
 	printfdbg("srcds.exe? %d\n", srcds); 
 
-#ifdef HWID
-	HW_PROFILE_INFO hwProfileInfo;
-	if (GetCurrentHwProfile(&hwProfileInfo))
-	{
-		printfdbg("HWID: %s\n", hwProfileInfo.szHwProfileGuid);
-
-		if (strcmp(XorStr(HWIDSTRING), hwProfileInfo.szHwProfileGuid))
-		{
-			printfdbg("Error: Bad hwid\n");
-			MessageBoxA_(XorStr("Error"), XorStr("Bad HWID"));
-			exit(0);
-			_Exit(0);
-			memcpy(0, &hwProfileInfo, 0x100);
-		}
-	}
-#endif  
-
 #ifdef TIMEDACCESS
 	printfdbg("compile time %d\n", compiletime);
 	curtime = gTime();
@@ -1051,8 +1028,7 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		
 		if (srcds && GetAsyncKeyState(VK_END))
 			break;
-		
-
+		 
 #ifdef TIMEDACCESS
 		if (!CheckTime())
 		{
