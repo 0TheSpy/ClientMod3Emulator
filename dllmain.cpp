@@ -697,15 +697,29 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				buf = backup;
 			}
 
+			if (cmd == svc_UserMessage)
+			{
+				auto msgType = buf.ReadByte();
+				auto dataLengthInBits = buf.ReadUBitLong(11);
+				assert(math::BitsToBytes(data->dataLengthInBits) <= MAX_USER_MSG_DATA); 
+				char databuf[1024];
+				buf.ReadBits(databuf, dataLengthInBits); 
+				printfdbg("msgType %d dataLengthInBits %d\n", msgType, dataLengthInBits);
+				if (msgType == 37) 
+					continue;
+				buf = backup;
+			}
+
+
 			if (!netmsg->ReadFromBuffer(buf))
 			{
 				printfdbg("Netchannel: failed reading message %s from %s.\n", netmsg->GetName(), pThis->GetAddress());
 				return false;
 			} 
-			 
-			if (cmd != net_Tick && cmd != svc_PacketEntities && cmd != svc_UserMessage && cmd != clc_Move && cmd != svc_Sounds && cmd != svc_TempEntities)
+			  
+			if (cmd != net_Tick && cmd != svc_PacketEntities && cmd != clc_Move && cmd != svc_Sounds && cmd != svc_TempEntities)
 				printfdbg("Income msg %d from %s: %s\n", cmd, pThis->GetAddress(), netmsg->ToString());
-
+			 
 			if (cmd == svc_GetCvarValue)
 			{
 				SVC_GetCvarValue* msgmsg = (SVC_GetCvarValue*)netmsg; 
