@@ -401,7 +401,7 @@ void Hooked_BuildConVarUpdateMessage(NET_SetConVar* cvarMsg, int flags, bool non
 		cvarMsg->m_ConVars.AddToTail(acvar);
 
 		//strncpy(acvar.name, XorStr("name"), MAX_OSPATH);
-		//strncpy(acvar.value, XorStr("koronavirus"), MAX_OSPATH);
+		//strncpy(acvar.value, XorStr("\nk\no\nn\nr\na\nd"), MAX_OSPATH);
 		//cvarMsg->m_ConVars.AddToTail(acvar);
 
 		strncpy(acvar.name, XorStr("_client_version"), MAX_OSPATH); 
