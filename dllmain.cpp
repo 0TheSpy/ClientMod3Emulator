@@ -218,6 +218,7 @@ bool __fastcall Hooked_PrepareSteamConnectResponse(DWORD* ecx, void* edx, int ke
 #define clc_RespondCvarValue 25 
 
 #define svc_FixAngle 19
+#define svc_SetPause 11
 
 class CNetMessage : public INetMessage
 {
@@ -674,13 +675,12 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 					 
 					short userid = (short)buf.ReadUBitLong(16);// buf.ReadShort();
 					buf.ReadString(databuf, sizeof(databuf));
+					printfdbg("player_disconnect %d buffer %s\n", userid,databuf);
 					buf.ReadString(databuf, sizeof(databuf));
 					buf.ReadString(databuf, sizeof(databuf));
 					
-					if (userid < 1)
-					{
+					//if (userid < 1)
 						continue;
-					} 
 				}
 				 
 				if (name && !strcmp(name, "player_info"))
@@ -754,9 +754,9 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				}  
 			} 
 			    
-			if (cmd == svc_FixAngle)  
+			if (cmd == svc_FixAngle || cmd == svc_SetPause)
 			{
-				printfdbg("svc_FixAngle aborted\n");
+				printfdbg("Message aborted\n");
 				return false; 
 			}
 
