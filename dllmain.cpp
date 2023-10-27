@@ -509,9 +509,7 @@ CGameEventDescriptor* GetEventDescriptor(CGameEventDescriptor* descriptors, int 
 	}
 	return NULL;
 }
-
-#include <KeyValues.h>
-
+ 
 bool ProcessControlMessage(INetChannel* chan, int cmd, bf_read& buf)
 {    
 	char string[1024];
