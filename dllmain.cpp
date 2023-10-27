@@ -926,7 +926,7 @@ bool __fastcall hkDispatchUserMessage(DWORD* this_, void* edx, int msg_type, bf_
 	if (msg_type < 0 || msg_type >= this_[5])
 		return false;
 
-	if (msg_type == 12) //Fade
+	if (msg_type == 12 || msg_type == 11) //Fade Shake
 	{
 		printfdbg("DispatchUserMessage: %s (%d) Rejected\n", ((char* (__thiscall*)(void*, int))dwGetUserMessageName)(this_, msg_type), msg_type);
 		return true;
