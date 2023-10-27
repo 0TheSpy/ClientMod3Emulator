@@ -717,7 +717,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				return false;
 			} 
 			  
-			if (cmd != net_Tick && cmd != svc_PacketEntities && cmd != svc_UserMessage && cmd != clc_Move && cmd != svc_Sounds && cmd != svc_TempEntities)
+			if (cmd != net_Tick && cmd != svc_PacketEntities && cmd != svc_UserMessage && cmd != clc_Move && cmd != svc_Sounds && cmd != svc_TempEntities && cmd != svc_GameEvent)
 				printfdbg("Income msg %d from %s: %s\n", cmd, pThis->GetAddress(), netmsg->ToString());
 			 
 			if (cmd == svc_GetCvarValue)
@@ -888,7 +888,7 @@ typedef bool(__thiscall* pSendNetMsg)(INetChannel* pNetChan, INetMessage& msg, b
 bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg,  bool bVoice)
 { 
 	int cmd = msg.GetType();
-	if (cmd != net_Tick && cmd != clc_Move && cmd != svc_UserMessage)
+	if (cmd != net_Tick && cmd != clc_Move && cmd != svc_UserMessage && cmd != svc_GameEvent)
 		printfdbg("Outcome msg %d: %s\n", cmd, msg.ToString()); //msg.GetName()
 	       
 	if (cmd == svc_UserMessage)
@@ -922,15 +922,15 @@ bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg,  b
 DWORD dwDispatchUserMessage;
 typedef bool(__thiscall* pDispatchUserMessage)(void* this_, int msg_type, bf_read& msg_data);
 bool __fastcall hkDispatchUserMessage(DWORD* this_, void* edx, int msg_type, bf_read& msg_data)
-{ 
-	if (msg_type == 12) //Fade
-		return false;
-
+{  
 	if (msg_type < 0 || msg_type >= this_[5])
 		return false;
 
 	printfdbg("DispatchUserMessage: %d %s\n", msg_type, ((char* (__thiscall*)(void*, int))dwGetUserMessageName)(this_, msg_type));
 	
+	if (msg_type == 12) //Fade
+		return true;
+
 	static pDispatchUserMessage DispatchUserMessage = (pDispatchUserMessage)dwDispatchUserMessage;
 	return DispatchUserMessage(this_, msg_type, msg_data);
 }
