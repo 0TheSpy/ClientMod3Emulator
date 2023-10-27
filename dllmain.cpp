@@ -894,7 +894,7 @@ bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg,  b
 	if (cmd == svc_UserMessage)
 	{
 		byte usermsgID = *(DWORD*)((DWORD)&msg + 0x10);
-		printfdbg("svc_UserMessage %d %s\n", usermsgID, ((char* (__thiscall*)(void*, int))dwGetUserMessageName)((*(DWORD**)CUserMessages), usermsgID));
+		printfdbg("svc_UserMessage %s (%d)\n", ((char* (__thiscall*)(void*, int))dwGetUserMessageName)((*(DWORD**)CUserMessages), usermsgID), usermsgID);
 	}
 
 	if (cmd == svc_GameEvent)
@@ -928,11 +928,11 @@ bool __fastcall hkDispatchUserMessage(DWORD* this_, void* edx, int msg_type, bf_
 
 	if (msg_type == 12) //Fade
 	{
-		printfdbg("DispatchUserMessage: %d %s Rejected\n", msg_type, ((char* (__thiscall*)(void*, int))dwGetUserMessageName)(this_, msg_type));
+		printfdbg("DispatchUserMessage: %s (%d) Rejected\n", ((char* (__thiscall*)(void*, int))dwGetUserMessageName)(this_, msg_type), msg_type);
 		return true;
 	}
 	else
-		printfdbg("DispatchUserMessage: %d %s\n", msg_type, ((char* (__thiscall*)(void*, int))dwGetUserMessageName)(this_, msg_type));
+		printfdbg("DispatchUserMessage: %s (%d)\n", ((char* (__thiscall*)(void*, int))dwGetUserMessageName)(this_, msg_type), msg_type);
 
 
 	static pDispatchUserMessage DispatchUserMessage = (pDispatchUserMessage)dwDispatchUserMessage;
