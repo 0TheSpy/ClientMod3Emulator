@@ -770,16 +770,19 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 					 
 					return false;
 				}  
-			}  
+			}   
 
-			if (srcds) 
+			if (!srcds)
 			{
 				if (cmd == svc_FixAngle || cmd == svc_SetPause)
 				{
 					printfdbg("Message rejected\n");
 					return false;
 				}
+			}
 
+			if (srcds) 
+			{  
 				if (cmd == net_SetConVar)
 				{
 					NET_SetConVar* msgmsg = (NET_SetConVar*)netmsg;
@@ -1098,9 +1101,7 @@ DWORD WINAPI HackThread(HMODULE hModule)
 	}
 	DetourDetach(&(LPVOID&)dwProcessMessages, reinterpret_cast<BYTE*>(Hooked_ProcessMessages));
 	DetourDetach(&(LPVOID&)(dwSendNetMsg), reinterpret_cast<BYTE*>(hkSendNetMsg));
-
-	
-
+	 
 	DetourTransactionCommit();
 
 	if (!srcds) {
@@ -1113,7 +1114,6 @@ DWORD WINAPI HackThread(HMODULE hModule)
 	
 	return 0; 
 }
-
 
 
 BOOL APIENTRY DllMain( HMODULE hModule, 
