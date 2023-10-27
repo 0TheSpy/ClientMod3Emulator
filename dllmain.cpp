@@ -702,7 +702,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				char databuf[1024];
 				buf.ReadBits(databuf, dataLengthInBits);  
 				   
-				if (msgType >= (*(DWORD**)CUserMessages)[5])
+				if (msgType < 0 || msgType >= (*(DWORD**)CUserMessages)[5])
 				{
 					printfdbg("UserMsg Rejected: type %d dataLengthInBits %d\n", msgType, dataLengthInBits);
 					continue;
@@ -923,7 +923,7 @@ DWORD dwDispatchUserMessage;
 typedef bool(__thiscall* pDispatchUserMessage)(void* this_, int msg_type, bf_read& msg_data);
 bool __fastcall hkDispatchUserMessage(DWORD* this_, void* edx, int msg_type, bf_read& msg_data)
 { 
-	if (msg_type >= this_[5])
+	if (msg_type < 0 || msg_type >= this_[5])
 		return false;
 
 	printfdbg("DispatchUserMessage: %d %s\n", msg_type, ((char* (__thiscall*)(void*, int))dwGetUserMessageName)(this_, msg_type));
