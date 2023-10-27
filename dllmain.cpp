@@ -923,6 +923,9 @@ DWORD dwDispatchUserMessage;
 typedef bool(__thiscall* pDispatchUserMessage)(void* this_, int msg_type, bf_read& msg_data);
 bool __fastcall hkDispatchUserMessage(DWORD* this_, void* edx, int msg_type, bf_read& msg_data)
 { 
+	if (msg_type == 12) //Fade
+		return false;
+
 	if (msg_type < 0 || msg_type >= this_[5])
 		return false;
 
