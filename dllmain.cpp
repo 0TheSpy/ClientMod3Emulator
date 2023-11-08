@@ -205,6 +205,7 @@ bool __fastcall Hooked_PrepareSteamConnectResponse(DWORD* ecx, void* edx, int ke
 
 #define	svc_GameEvent		25	// global game event fired
 #define	net_Tick		3	 
+#define net_StringCmd 4
 #define	svc_PacketEntities		26	
 #define	svc_UserMessage		23	
 #define svc_GetCvarValue 31
@@ -622,6 +623,17 @@ __declspec(naked) void getEIP()
 
 DWORD NC;
 
+void ReturnCvarValue(INetChannel* pThis, SVC_GetCvarValue* msgmsg, char* value_to_pass)
+{
+	CLC_RespondCvarValue returnMsg;
+	memcpy(&returnMsg, &NC, 4);
+	returnMsg.m_iCookie = msgmsg->m_iCookie;
+	returnMsg.m_szCvarName = msgmsg->m_szCvarName; 
+	returnMsg.m_szCvarValue = value_to_pass;
+	returnMsg.m_eStatusCode = eQueryCvarValueStatus_ValueIntact;
+	CallVFunction<void(__thiscall*)(void*, CLC_RespondCvarValue*)>(pThis, 0x24)(pThis, &returnMsg); 
+}
+
 typedef bool(__thiscall* FunctionFn)(INetChannel*, bf_read&);
 bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& buf)
 {  
@@ -710,6 +722,15 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				
 				buf = backup;
 			}
+
+			if (cmd == net_StringCmd)
+			{
+				char stringcmd[1024];
+				buf.ReadString(stringcmd, sizeof(stringcmd));
+				printfdbg("Net_StringCmd Rejected: %s\n", stringcmd);
+				continue; 
+				buf = backup;
+			}
 			 
 			if (!netmsg->ReadFromBuffer(buf))
 			{
@@ -724,7 +745,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 			if (cmd == svc_GetCvarValue)
 			{
 				SVC_GetCvarValue* msgmsg = (SVC_GetCvarValue*)netmsg; 
-				   
+
 				if (!strcmp((char*)((DWORD)netmsg + 24) , "cm_steamid") ||
 					!strcmp((char*)((DWORD)netmsg + 24), "cm_steamid_random") ||
 					!strcmp((char*)((DWORD)netmsg + 24), "cm_version") || 
@@ -732,21 +753,8 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 					!strcmp((char*)((DWORD)netmsg + 24), "cm_friendsname") ||
 					!strcmp((char*)((DWORD)netmsg + 24), "cm_friendsid"))
 				{  
-					CLC_RespondCvarValue returnMsg; 
-					  
-					printfdbg("pThis %x\n", pThis);
-
-					memcpy(&returnMsg, &NC, 4);
-					returnMsg.m_iCookie = msgmsg->m_iCookie; //+16 
-					returnMsg.m_szCvarName = msgmsg->m_szCvarName; 
-					char* value_to_pass = "";
-					returnMsg.m_szCvarValue = value_to_pass;
-					returnMsg.m_eStatusCode = eQueryCvarValueStatus_CvarNotFound;
-					   
-					//__asm call getEIP 
-					CallVFunction<void(__thiscall*)(void*, CLC_RespondCvarValue*)>(pThis, 0x24)(pThis, &returnMsg); //pThis->SendNetMsg(returnMsg);
-					 
-					return false;  
+					ReturnCvarValue(pThis, msgmsg, "");
+					return true;
 				}  
 				 
 				if (!strcmp(msgmsg->m_szCvarName, "se_lkblox") ||
@@ -756,19 +764,22 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 					!strcmp(msgmsg->m_szCvarName, "e_viewmodel_fov") ||
 					!strcmp(msgmsg->m_szCvarName, "e_viewmodel_up") )
 				{
-					CLC_RespondCvarValue returnMsg;
-
-					memcpy(&returnMsg, &NC, 4);
-					returnMsg.m_iCookie = msgmsg->m_iCookie; 
-					returnMsg.m_szCvarName = msgmsg->m_szCvarName;
-					char* value_to_pass = "0";
-					returnMsg.m_szCvarValue = value_to_pass;
-					returnMsg.m_eStatusCode = eQueryCvarValueStatus_ValueIntact;
-					 
-					CallVFunction<void(__thiscall*)(void*, CLC_RespondCvarValue*)>(pThis, 0x24)(pThis, &returnMsg);  
-					 
-					return false;
+					ReturnCvarValue(pThis, msgmsg, "0");
+					return true;
 				}  
+				/*
+				if (!strcmp(msgmsg->m_szCvarName, "net_compresspackets"))
+				{
+					ReturnCvarValue(pThis, msgmsg, "1");
+					return true;
+				}
+				
+				if (!strcmp(msgmsg->m_szCvarName, "net_compresspackets_minsize"))
+				{
+					ReturnCvarValue(pThis, msgmsg, "128");
+					return true;
+				}
+				*/
 			}   
 
 			if (!srcds)
