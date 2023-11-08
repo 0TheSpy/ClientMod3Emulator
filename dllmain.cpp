@@ -723,23 +723,24 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				buf = backup;
 			}
 
-			
-			if (cmd == svc_Menu)
-			{ 
-				short Type = (short)buf.ReadUBitLong(16);
-				auto dataLength = buf.ReadUBitLong(16); 
-				char databuf[4096]; 
-				buf.ReadBytes(databuf, dataLength);
-				printfdbg("svc_Menu Rejected: type %d dataLength %d\n", Type, dataLength);
-				continue;
-			}
-			
-			if (cmd == net_StringCmd)
-			{
-				char stringcmd[1024];
-				buf.ReadString(stringcmd, sizeof(stringcmd));
-				printfdbg("Net_StringCmd Rejected: %s\n", stringcmd);
-				continue; 
+			if (!srcds) {
+				if (cmd == svc_Menu)
+				{
+					short Type = (short)buf.ReadUBitLong(16);
+					auto dataLength = buf.ReadUBitLong(16);
+					char databuf[4096];
+					buf.ReadBytes(databuf, dataLength);
+					printfdbg("svc_Menu Rejected: type %d dataLength %d\n", Type, dataLength);
+					continue;
+				}
+
+				if (cmd == net_StringCmd)
+				{
+					char stringcmd[1024];
+					buf.ReadString(stringcmd, sizeof(stringcmd));
+					printfdbg("Net_StringCmd Rejected: %s\n", stringcmd);
+					continue;
+				}
 			}
 
 			if (!netmsg->ReadFromBuffer(buf))
@@ -761,7 +762,8 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 					!strcmp((char*)((DWORD)netmsg + 24), "cm_version") || 
 					!strcmp((char*)((DWORD)netmsg + 24), "cm_enabled") ||
 					!strcmp((char*)((DWORD)netmsg + 24), "cm_friendsname") ||
-					!strcmp((char*)((DWORD)netmsg + 24), "cm_friendsid"))
+					!strcmp((char*)((DWORD)netmsg + 24), "cm_friendsid")  
+					)
 				{  
 					ReturnCvarValue(pThis, eQueryCvarValueStatus_CvarNotFound, msgmsg->m_iCookie, msgmsg->m_szCvarName, "");
 					return true;
