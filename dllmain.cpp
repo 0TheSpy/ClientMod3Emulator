@@ -717,7 +717,8 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				return false;
 			} 
 			  
-			if (cmd != net_Tick && cmd != svc_PacketEntities && cmd != svc_UserMessage && cmd != clc_Move && cmd != svc_Sounds && cmd != svc_TempEntities && cmd != svc_GameEvent)
+			if (cmd != net_Tick && cmd != svc_PacketEntities && cmd != svc_UserMessage && cmd != clc_Move && 
+				cmd != svc_Sounds && cmd != svc_TempEntities && cmd != svc_GameEvent)
 				printfdbg("Income msg %d from %s: %s\n", cmd, pThis->GetAddress(), netmsg->ToString());
 			 
 			if (cmd == svc_GetCvarValue)
@@ -926,13 +927,24 @@ bool __fastcall hkDispatchUserMessage(DWORD* this_, void* edx, int msg_type, bf_
 	if (msg_type < 0 || msg_type >= this_[5])
 		return false;
 
-	if (msg_type == 12 || msg_type == 11) //Fade Shake
+	if (msg_type == 11 || msg_type == 12) //Shake Fade 
 	{
 		printfdbg("DispatchUserMessage: %s (%d) Rejected\n", ((char* (__thiscall*)(void*, int))dwGetUserMessageName)(this_, msg_type), msg_type);
 		return true;
 	}
 	else
-		printfdbg("DispatchUserMessage: %s (%d)\n", ((char* (__thiscall*)(void*, int))dwGetUserMessageName)(this_, msg_type), msg_type);
+		if (msg_type == 13) //VGUIMenu
+		{
+			bf_read backup = msg_data;
+			char name[1024];
+			msg_data.ReadString(name, sizeof(name));
+			printfdbg("DispatchUserMessage: %s (%d): %s\n", ((char* (__thiscall*)(void*, int))dwGetUserMessageName)(this_, msg_type), msg_type, name);
+			if (!strcmp(name, XorStr("info"))) 
+				return true;  
+			msg_data = backup;
+		}
+		else
+			printfdbg("DispatchUserMessage: %s (%d)\n", ((char* (__thiscall*)(void*, int))dwGetUserMessageName)(this_, msg_type), msg_type);
 
 
 	static pDispatchUserMessage DispatchUserMessage = (pDispatchUserMessage)dwDispatchUserMessage;
