@@ -730,7 +730,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				auto dataLength = buf.ReadUBitLong(16); 
 				char databuf[4096]; 
 				buf.ReadBytes(databuf, dataLength);
-				printfdbg("svc_Menu Rejected: type %d dataLengthInBits %d\n", Type, dataLength);
+				printfdbg("svc_Menu Rejected: type %d dataLength %d\n", Type, dataLength);
 				continue;
 				buf = backup;
 			}
