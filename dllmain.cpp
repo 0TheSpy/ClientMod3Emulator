@@ -726,7 +726,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 			
 			if (cmd == svc_Menu)
 			{ 
-				short Type = (short)buf.ReadUBitLong(16);// buf.ReadShort(); 
+				short Type = (short)buf.ReadUBitLong(16);
 				auto dataLength = buf.ReadUBitLong(16); 
 				char databuf[4096]; 
 				buf.ReadBytes(databuf, dataLength);
