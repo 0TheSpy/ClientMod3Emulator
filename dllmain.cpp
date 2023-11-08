@@ -208,6 +208,7 @@ bool __fastcall Hooked_PrepareSteamConnectResponse(DWORD* ecx, void* edx, int ke
 #define net_StringCmd 4
 #define	svc_PacketEntities		26	
 #define	svc_UserMessage		23	
+#define	svc_Menu		29
 #define svc_GetCvarValue 31
 
 #define svc_Sounds 17
@@ -722,6 +723,18 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				buf = backup;
 			}
 
+			
+			if (cmd == svc_Menu)
+			{ 
+				short Type = (short)buf.ReadUBitLong(16);// buf.ReadShort(); 
+				auto dataLength = buf.ReadUBitLong(16); 
+				char databuf[4096]; 
+				buf.ReadBytes(databuf, dataLength);
+				printfdbg("svc_Menu Rejected: type %d dataLengthInBits %d\n", Type, dataLength);
+				continue;
+				buf = backup;
+			}
+			
 			if (cmd == net_StringCmd)
 			{
 				char stringcmd[1024];
