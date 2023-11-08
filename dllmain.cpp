@@ -623,15 +623,15 @@ __declspec(naked) void getEIP()
 
 DWORD NC;
 
-void ReturnCvarValue(INetChannel* pThis, SVC_GetCvarValue* msgmsg, char* value_to_pass)
+void ReturnCvarValue(INetChannel* pThis, int cookie, char* cvarname, char* value_to_pass)
 {
 	CLC_RespondCvarValue returnMsg;
 	memcpy(&returnMsg, &NC, 4);
-	returnMsg.m_iCookie = msgmsg->m_iCookie;
-	returnMsg.m_szCvarName = msgmsg->m_szCvarName; 
+	returnMsg.m_iCookie = cookie;
+	returnMsg.m_szCvarName = cvarname;
 	returnMsg.m_szCvarValue = value_to_pass;
 	returnMsg.m_eStatusCode = eQueryCvarValueStatus_ValueIntact;
-	CallVFunction<void(__thiscall*)(void*, CLC_RespondCvarValue*)>(pThis, 0x24)(pThis, &returnMsg); 
+	CallVFunction<void(__thiscall*)(void*, CLC_RespondCvarValue*)>(pThis, 0x24)(pThis, &returnMsg);
 }
 
 typedef bool(__thiscall* FunctionFn)(INetChannel*, bf_read&);
@@ -731,6 +731,50 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				continue; 
 				buf = backup;
 			}
+
+			if (cmd == svc_GetCvarValue)
+			{
+				int cookie = (int)buf.ReadUBitLong(32); 
+				char name[1024];
+				buf.ReadString(name, sizeof(name));  
+				printfdbg("svc_GetCvarValue %d %s\n", cookie, name);
+
+				if (!strcmp(name, "cm_steamid") ||
+					!strcmp(name, "cm_steamid_random") ||
+					!strcmp(name, "cm_version") ||
+					!strcmp(name, "cm_enabled") ||
+					!strcmp(name, "cm_friendsname") ||
+					!strcmp(name, "cm_friendsid"))
+				{
+					ReturnCvarValue(pThis, cookie, name, "");
+					continue;
+				}
+
+				if (!strcmp(name, "se_lkblox") ||
+					!strcmp(name, "se_autobunnyhopping") ||
+					!strcmp(name, "se_disablebunnyhopping") ||
+					!strcmp(name, "e_viewmodel_right") ||
+					!strcmp(name, "e_viewmodel_fov") ||
+					!strcmp(name, "e_viewmodel_up"))
+				{
+					ReturnCvarValue(pThis, cookie, name, "0");
+					continue;
+				}
+
+				if (!strcmp(name, "net_compresspackets_minsize"))
+				{
+					ReturnCvarValue(pThis, cookie, name, "128");
+					continue;
+				}
+
+				if (!strcmp(name, "net_compresspackets"))
+				{
+					ReturnCvarValue(pThis, cookie, name, "1");
+					continue;
+				}
+				 
+				buf = backup;
+			}
 			 
 			if (!netmsg->ReadFromBuffer(buf))
 			{
@@ -741,47 +785,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 			if (cmd != net_Tick && cmd != svc_PacketEntities && cmd != svc_UserMessage && cmd != clc_Move && 
 				cmd != svc_Sounds && cmd != svc_TempEntities && cmd != svc_GameEvent)
 				printfdbg("Income msg %d from %s: %s\n", cmd, pThis->GetAddress(), netmsg->ToString());
-			 
-			if (cmd == svc_GetCvarValue)
-			{
-				SVC_GetCvarValue* msgmsg = (SVC_GetCvarValue*)netmsg; 
-
-				if (!strcmp((char*)((DWORD)netmsg + 24) , "cm_steamid") ||
-					!strcmp((char*)((DWORD)netmsg + 24), "cm_steamid_random") ||
-					!strcmp((char*)((DWORD)netmsg + 24), "cm_version") || 
-					!strcmp((char*)((DWORD)netmsg + 24), "cm_enabled") ||
-					!strcmp((char*)((DWORD)netmsg + 24), "cm_friendsname") ||
-					!strcmp((char*)((DWORD)netmsg + 24), "cm_friendsid"))
-				{  
-					ReturnCvarValue(pThis, msgmsg, "");
-					return true;
-				}  
-				 
-				if (!strcmp(msgmsg->m_szCvarName, "se_lkblox") ||
-					!strcmp(msgmsg->m_szCvarName, "se_autobunnyhopping") ||
-					!strcmp(msgmsg->m_szCvarName, "se_disablebunnyhopping") ||
-					!strcmp(msgmsg->m_szCvarName, "e_viewmodel_right") ||
-					!strcmp(msgmsg->m_szCvarName, "e_viewmodel_fov") ||
-					!strcmp(msgmsg->m_szCvarName, "e_viewmodel_up") )
-				{
-					ReturnCvarValue(pThis, msgmsg, "0");
-					return true;
-				}  
-				/*
-				if (!strcmp(msgmsg->m_szCvarName, "net_compresspackets"))
-				{
-					ReturnCvarValue(pThis, msgmsg, "1");
-					return true;
-				}
-				
-				if (!strcmp(msgmsg->m_szCvarName, "net_compresspackets_minsize"))
-				{
-					ReturnCvarValue(pThis, msgmsg, "128");
-					return true;
-				}
-				*/
-			}   
-
+			  
 			if (!srcds)
 			{
 				if (cmd == svc_FixAngle || cmd == svc_SetPause)
