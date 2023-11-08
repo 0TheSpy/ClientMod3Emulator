@@ -621,17 +621,16 @@ __declspec(naked) void getEIP()
 	__asm ret
 }
 
-DWORD NC;
-
-void ReturnCvarValue(INetChannel* pThis, int cookie, char* cvarname, char* value_to_pass)
+DWORD NC; //INetChannel
+void ReturnCvarValue(INetChannel* pThis, EQueryCvarValueStatus status, QueryCvarCookie_t cookie, const char* cvarname, char* value_to_pass)
 {
 	CLC_RespondCvarValue returnMsg;
 	memcpy(&returnMsg, &NC, 4);
 	returnMsg.m_iCookie = cookie;
 	returnMsg.m_szCvarName = cvarname;
 	returnMsg.m_szCvarValue = value_to_pass;
-	returnMsg.m_eStatusCode = eQueryCvarValueStatus_ValueIntact;
-	CallVFunction<void(__thiscall*)(void*, CLC_RespondCvarValue*)>(pThis, 0x24)(pThis, &returnMsg);
+	returnMsg.m_eStatusCode = status;
+	CallVFunction<void(__thiscall*)(void*, CLC_RespondCvarValue*)>(pThis, 0x24)(pThis, &returnMsg); //m_NetChannel->SendNetMsg
 }
 
 typedef bool(__thiscall* FunctionFn)(INetChannel*, bf_read&);
@@ -732,50 +731,6 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				buf = backup;
 			}
 
-			if (cmd == svc_GetCvarValue)
-			{
-				int cookie = (int)buf.ReadUBitLong(32); 
-				char name[1024];
-				buf.ReadString(name, sizeof(name));  
-				printfdbg("svc_GetCvarValue %d %s\n", cookie, name);
-
-				if (!strcmp(name, "cm_steamid") ||
-					!strcmp(name, "cm_steamid_random") ||
-					!strcmp(name, "cm_version") ||
-					!strcmp(name, "cm_enabled") ||
-					!strcmp(name, "cm_friendsname") ||
-					!strcmp(name, "cm_friendsid"))
-				{
-					ReturnCvarValue(pThis, cookie, name, "");
-					continue;
-				}
-
-				if (!strcmp(name, "se_lkblox") ||
-					!strcmp(name, "se_autobunnyhopping") ||
-					!strcmp(name, "se_disablebunnyhopping") ||
-					!strcmp(name, "e_viewmodel_right") ||
-					!strcmp(name, "e_viewmodel_fov") ||
-					!strcmp(name, "e_viewmodel_up"))
-				{
-					ReturnCvarValue(pThis, cookie, name, "0");
-					continue;
-				}
-
-				if (!strcmp(name, "net_compresspackets_minsize"))
-				{
-					ReturnCvarValue(pThis, cookie, name, "128");
-					continue;
-				}
-
-				if (!strcmp(name, "net_compresspackets"))
-				{
-					ReturnCvarValue(pThis, cookie, name, "1");
-					continue;
-				}
-				 
-				buf = backup;
-			}
-			 
 			if (!netmsg->ReadFromBuffer(buf))
 			{
 				printfdbg("Netchannel: failed reading message %s from %s.\n", netmsg->GetName(), pThis->GetAddress());
@@ -786,15 +741,54 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				cmd != svc_Sounds && cmd != svc_TempEntities && cmd != svc_GameEvent)
 				printfdbg("Income msg %d from %s: %s\n", cmd, pThis->GetAddress(), netmsg->ToString());
 			  
-			if (!srcds)
+			if (cmd == svc_GetCvarValue)
 			{
-				if (cmd == svc_FixAngle || cmd == svc_SetPause)
-				{
-					printfdbg("Message rejected\n");
-					return false;
-				}
-			}
+				SVC_GetCvarValue* msgmsg = (SVC_GetCvarValue*)netmsg; 
 
+				if (!strcmp((char*)((DWORD)netmsg + 24) , "cm_steamid") ||
+					!strcmp((char*)((DWORD)netmsg + 24), "cm_steamid_random") ||
+					!strcmp((char*)((DWORD)netmsg + 24), "cm_version") || 
+					!strcmp((char*)((DWORD)netmsg + 24), "cm_enabled") ||
+					!strcmp((char*)((DWORD)netmsg + 24), "cm_friendsname") ||
+					!strcmp((char*)((DWORD)netmsg + 24), "cm_friendsid"))
+				{  
+					ReturnCvarValue(pThis, eQueryCvarValueStatus_CvarNotFound, msgmsg->m_iCookie, msgmsg->m_szCvarName, "");
+					return true;
+				}  
+				 
+				if (!strcmp(msgmsg->m_szCvarName, "se_lkblox") ||
+					!strcmp(msgmsg->m_szCvarName, "se_autobunnyhopping") ||
+					!strcmp(msgmsg->m_szCvarName, "se_disablebunnyhopping") ||
+					!strcmp(msgmsg->m_szCvarName, "e_viewmodel_right") ||
+					!strcmp(msgmsg->m_szCvarName, "e_viewmodel_fov") ||
+					!strcmp(msgmsg->m_szCvarName, "e_viewmodel_up") )
+				{
+					ReturnCvarValue(pThis, eQueryCvarValueStatus_ValueIntact, msgmsg->m_iCookie, msgmsg->m_szCvarName, "0");
+					return true;
+				}   
+
+				/*
+				if (!strcmp(msgmsg->m_szCvarName, "net_compresspackets_minsize"))
+				{
+					ReturnCvarValue(pThis, eQueryCvarValueStatus_ValueIntact, msgmsg->m_iCookie, msgmsg->m_szCvarName, "128");
+					return true;
+					
+				} 
+
+				if (!strcmp(msgmsg->m_szCvarName, "windows_speaker_config"))
+				{
+					ReturnCvarValue(pThis, eQueryCvarValueStatus_ValueIntact, msgmsg->m_iCookie, msgmsg->m_szCvarName, "4");
+					return true;
+				}
+				 
+				if (!strcmp(msgmsg->m_szCvarName, "net_compresspackets"))
+				{
+					ReturnCvarValue(pThis, eQueryCvarValueStatus_ValueIntact, msgmsg->m_iCookie, msgmsg->m_szCvarName, "1");
+					return true;
+				}
+				*/ 
+			}   
+			   
 			if (srcds) 
 			{  
 				if (cmd == net_SetConVar)
@@ -825,7 +819,15 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 					printfdbg("\n");
 				}  
 			}
-
+			else
+			{
+				if (cmd == svc_FixAngle || cmd == svc_SetPause)
+				{
+					printfdbg("Message rejected\n");
+					return false;
+				}
+			}
+			 
 			if (!netmsg->Process())
 			{
 				printfdbg("Netchannel: failed processing message %s.\n", netmsg->GetName());
