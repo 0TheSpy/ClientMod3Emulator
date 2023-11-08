@@ -732,7 +732,6 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				buf.ReadBytes(databuf, dataLength);
 				printfdbg("svc_Menu Rejected: type %d dataLength %d\n", Type, dataLength);
 				continue;
-				buf = backup;
 			}
 			
 			if (cmd == net_StringCmd)
@@ -741,7 +740,6 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				buf.ReadString(stringcmd, sizeof(stringcmd));
 				printfdbg("Net_StringCmd Rejected: %s\n", stringcmd);
 				continue; 
-				buf = backup;
 			}
 
 			if (!netmsg->ReadFromBuffer(buf))
