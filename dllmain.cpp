@@ -1047,9 +1047,9 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		CvFriendsid->m_bHasMin = true;
 		CvFriendsid->m_fMinVal = 0;
 		CvFriendsid->m_bHasMax = true;
-		CvFriendsid->m_fMaxVal = 4294967295.000000;
-
-		g_pCVar->FindVar("sv_cheats")->m_nFlags = 0;
+		CvFriendsid->m_fMaxVal = 4294967295.000000; 
+		g_pCVar->FindVar("sv_cheats")->m_nFlags = 0; 
+		g_pCVar->FindVar("cl_downloadfilter")->m_pszHelpString = "Determines which files can be downloaded from the server(all, none, nosounds, mapsonly)"; 
 
 		//g_pEngineClient->ExecuteClientCmd("setinfo se_lkblox 0; setinfo se_autobunnyhopping 0; setinfo se_disablebunnyhopping 0; setinfo e_viewmodel_right 0; setinfo e_viewmodel_fov 0; setinfo e_viewmodel_up 0;");
 
