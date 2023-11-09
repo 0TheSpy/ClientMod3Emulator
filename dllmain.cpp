@@ -623,6 +623,7 @@ __declspec(naked) void getEIP()
 }
 
 DWORD NC; //INetChannel
+DWORD NetChannel_SendNetMsg = 0;
 void ReturnCvarValue(INetChannel* pThis, EQueryCvarValueStatus status, QueryCvarCookie_t cookie, const char* cvarname, char* value_to_pass)
 {
 	CLC_RespondCvarValue returnMsg;
@@ -630,8 +631,9 @@ void ReturnCvarValue(INetChannel* pThis, EQueryCvarValueStatus status, QueryCvar
 	returnMsg.m_iCookie = cookie;
 	returnMsg.m_szCvarName = cvarname;
 	returnMsg.m_szCvarValue = value_to_pass;
-	returnMsg.m_eStatusCode = status;
-	CallVFunction<void(__thiscall*)(void*, CLC_RespondCvarValue*)>(pThis, 0x24)(pThis, &returnMsg); //m_NetChannel->SendNetMsg
+	returnMsg.m_eStatusCode = status; 
+	((void(__thiscall*)(void*, CLC_RespondCvarValue*))NetChannel_SendNetMsg)(pThis,&returnMsg);
+	//CallVFunction<void(__thiscall*)(void*, CLC_RespondCvarValue*)>(pThis, 0x24)(pThis, &returnMsg); //m_NetChannel->SendNetMsg
 }
 
 typedef bool(__thiscall* FunctionFn)(INetChannel*, bf_read&);
@@ -756,7 +758,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 			if (cmd == svc_GetCvarValue)
 			{
 				SVC_GetCvarValue* msgmsg = (SVC_GetCvarValue*)netmsg; 
-
+				 
 				if (!strcmp((char*)((DWORD)netmsg + 24) , "cm_steamid") ||
 					!strcmp((char*)((DWORD)netmsg + 24), "cm_steamid_random") ||
 					!strcmp((char*)((DWORD)netmsg + 24), "cm_version") || 
@@ -764,9 +766,9 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 					!strcmp((char*)((DWORD)netmsg + 24), "cm_friendsname") ||
 					!strcmp((char*)((DWORD)netmsg + 24), "cm_friendsid")  
 					)
-				{  
+				{   
 					ReturnCvarValue(pThis, eQueryCvarValueStatus_CvarNotFound, msgmsg->m_iCookie, msgmsg->m_szCvarName, "");
-					return true;
+					continue;
 				}  
 				 
 				if (!strcmp(msgmsg->m_szCvarName, "se_lkblox") ||
@@ -777,29 +779,38 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 					!strcmp(msgmsg->m_szCvarName, "e_viewmodel_up") )
 				{
 					ReturnCvarValue(pThis, eQueryCvarValueStatus_ValueIntact, msgmsg->m_iCookie, msgmsg->m_szCvarName, "0");
-					return true;
+					continue;
 				}   
 
-				/*
+				if (!strcmp(msgmsg->m_szCvarName, "net_blockmsg"))
+				{
+					ReturnCvarValue(pThis, eQueryCvarValueStatus_ValueIntact, msgmsg->m_iCookie, msgmsg->m_szCvarName, "none");
+					continue;
+				}
+			
 				if (!strcmp(msgmsg->m_szCvarName, "net_compresspackets_minsize"))
 				{
 					ReturnCvarValue(pThis, eQueryCvarValueStatus_ValueIntact, msgmsg->m_iCookie, msgmsg->m_szCvarName, "128");
-					return true;
-					
+					continue; 
 				} 
-
+				
 				if (!strcmp(msgmsg->m_szCvarName, "windows_speaker_config"))
 				{
 					ReturnCvarValue(pThis, eQueryCvarValueStatus_ValueIntact, msgmsg->m_iCookie, msgmsg->m_szCvarName, "4");
-					return true;
+					continue;
 				}
 				 
 				if (!strcmp(msgmsg->m_szCvarName, "net_compresspackets"))
 				{
 					ReturnCvarValue(pThis, eQueryCvarValueStatus_ValueIntact, msgmsg->m_iCookie, msgmsg->m_szCvarName, "1");
-					return true;
+					continue;
 				}
-				*/ 
+
+				if (!strcmp(msgmsg->m_szCvarName, "pyro_vignette"))
+				{
+					ReturnCvarValue(pThis, eQueryCvarValueStatus_ValueIntact, msgmsg->m_iCookie, msgmsg->m_szCvarName, "2");
+					continue;
+				}
 			}   
 			   
 			if (srcds) 
@@ -837,7 +848,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				if (cmd == svc_FixAngle || cmd == svc_SetPause)
 				{
 					printfdbg("Message rejected\n");
-					return false;
+					continue;
 				}
 			}
 			 
@@ -1013,8 +1024,9 @@ DWORD WINAPI HackThread(HMODULE hModule)
 
 	g_GameEventManager = (CGameEventManager*)GetInterface("engine.dll", "GAMEEVENTSMANAGER002");
 	 
-	if (!srcds) {
+	if (!srcds) { 
 		DWORD dwEngine = (DWORD)GetModuleHandleA("engine.dll");
+
 		IGameConsole* g_pGameConsole = (IGameConsole*)GetInterface(XorStr("gameui.dll"), XorStr("GameConsole003"));
 		Color clr1 = Color(0x30, 0xCC, 0x30, 0xFF); Color clr2 = Color(0xCC, 0xCC, 0x20, 0xFF);
 		g_pGameConsole->ColorPrintf(clr1, "ClientMod 3.0 Emulator\nOriginal code: ");
@@ -1048,10 +1060,13 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		dwPrepareSteamConnectResponse = scan.FindPattern(XorStr("engine.dll"), XorStr("\x81\xEC\x00\x00\x00\x00\x56\x8B\xF1\x8B\x0D\x00\x00\x00\x00\x8B\x01\xFF\x50\x24"), XorStr("xx????xxxxx????xxxxx")); //engine.dll+5D50
 		dwBuildConVarUpdateMessage = scan.FindPattern(XorStr("engine.dll"), XorStr("\xE8\x00\x00\x00\x00\x8D\x54\x24\x3C"), XorStr("x????xxxx"));
 		dwBuildConVarUpdateMessage += 0x9719;
+
+		NetChannel_SendNetMsg = scan.FindPattern(XorStr("engine.dll"), XorStr("\x56\x8b\xf1\x8d\x4e\xae\xe8\xae\xae\xae\xae\x85\xc0\x75"), XorStr("xxxxx?x????xxx"));
+		printfdbg("NetChannel_SendNetMsg %x\n", NetChannel_SendNetMsg);
 	}
 
 	dwProcessMessages = scan.FindPattern(XorStr("engine.dll"), XorStr("\x83\xEC\x2C\x53\x55\x89\x4C\x24\x10"), XorStr("xxxxxxxxx"));
-
+	  
 	printfdbg("dwPrepareSteamConnectResponse %x\n", dwPrepareSteamConnectResponse);
 
 	DWORD dwWriteListenEventList;
