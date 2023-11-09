@@ -62,6 +62,7 @@
 
 
 ///////////////////
+#ifdef TIMEDACCESS
 #include <chrono> 
 
 //https://timestamp.online/ 
@@ -196,3 +197,4 @@ bool CheckTime()
 	return 1;
 }
 
+#endif
