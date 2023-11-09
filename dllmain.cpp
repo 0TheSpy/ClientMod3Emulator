@@ -635,7 +635,14 @@ void ReturnCvarValue(INetChannel* pThis, EQueryCvarValueStatus status, QueryCvar
 	((void(__thiscall*)(void*, CLC_RespondCvarValue*))NetChannel_SendNetMsg)(pThis,&returnMsg);
 	//CallVFunction<void(__thiscall*)(void*, CLC_RespondCvarValue*)>(pThis, 0x24)(pThis, &returnMsg); //m_NetChannel->SendNetMsg
 }
-
+ 
+#define RespondCvarValue(name, value, status) \
+if (!strcmp((char*)((DWORD)netmsg + 24), name)) \
+{\
+ReturnCvarValue(pThis, status, msgmsg->m_iCookie, name, value);\
+continue;\
+}\
+ 
 typedef bool(__thiscall* FunctionFn)(INetChannel*, bf_read&);
 bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& buf)
 {  
@@ -759,58 +766,30 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 			{
 				SVC_GetCvarValue* msgmsg = (SVC_GetCvarValue*)netmsg; 
 				 
-				if (!strcmp((char*)((DWORD)netmsg + 24) , "cm_steamid") ||
-					!strcmp((char*)((DWORD)netmsg + 24), "cm_steamid_random") ||
-					!strcmp((char*)((DWORD)netmsg + 24), "cm_version") || 
-					!strcmp((char*)((DWORD)netmsg + 24), "cm_enabled") ||
-					!strcmp((char*)((DWORD)netmsg + 24), "cm_friendsname") ||
-					!strcmp((char*)((DWORD)netmsg + 24), "cm_friendsid")  
-					)
-				{   
-					ReturnCvarValue(pThis, eQueryCvarValueStatus_CvarNotFound, msgmsg->m_iCookie, msgmsg->m_szCvarName, "");
-					continue;
-				}  
+				RespondCvarValue("cm_steamid", "", eQueryCvarValueStatus_CvarNotFound);
+				RespondCvarValue("cm_steamid_random", "", eQueryCvarValueStatus_CvarNotFound);
+				RespondCvarValue("cm_version", "", eQueryCvarValueStatus_CvarNotFound);
+				RespondCvarValue("cm_enabled", "", eQueryCvarValueStatus_CvarNotFound);
+				RespondCvarValue("cm_friendsname", "", eQueryCvarValueStatus_CvarNotFound);
+				RespondCvarValue("cm_friendsid", "", eQueryCvarValueStatus_CvarNotFound); 
+				RespondCvarValue("se_lkblox", "0", eQueryCvarValueStatus_ValueIntact);
+				RespondCvarValue("se_autobunnyhopping", "0", eQueryCvarValueStatus_ValueIntact);
+				RespondCvarValue("se_disablebunnyhopping", "0", eQueryCvarValueStatus_ValueIntact);
+				RespondCvarValue("e_viewmodel_right", "0", eQueryCvarValueStatus_ValueIntact);
+				RespondCvarValue("e_viewmodel_fov", "0", eQueryCvarValueStatus_ValueIntact);
+				RespondCvarValue("e_viewmodel_up", "0", eQueryCvarValueStatus_ValueIntact); 
+				RespondCvarValue("net_blockmsg", "none", eQueryCvarValueStatus_ValueIntact);
+				RespondCvarValue("net_compresspackets_minsize", "128", eQueryCvarValueStatus_ValueIntact);
+				RespondCvarValue("windows_speaker_config", "4", eQueryCvarValueStatus_ValueIntact);
+				RespondCvarValue("net_compresspackets", "1", eQueryCvarValueStatus_ValueIntact); 
+				RespondCvarValue("pyro_vignette", "2", eQueryCvarValueStatus_ValueIntact);
+				RespondCvarValue("cl_minmodels", "0", eQueryCvarValueStatus_ValueIntact);
+				RespondCvarValue("cl_min_ct", "1", eQueryCvarValueStatus_ValueIntact); 
+				RespondCvarValue("cl_min_t", "1", eQueryCvarValueStatus_ValueIntact);
+				RespondCvarValue("cl_downloadfilter", "all", eQueryCvarValueStatus_ValueIntact);
+				RespondCvarValue("voice_inputfromfile", "0", eQueryCvarValueStatus_ValueIntact);
+				RespondCvarValue("voice_loopback", "0", eQueryCvarValueStatus_ValueIntact);
 				 
-				if (!strcmp(msgmsg->m_szCvarName, "se_lkblox") ||
-					!strcmp(msgmsg->m_szCvarName, "se_autobunnyhopping") ||
-					!strcmp(msgmsg->m_szCvarName, "se_disablebunnyhopping") ||
-					!strcmp(msgmsg->m_szCvarName, "e_viewmodel_right") ||
-					!strcmp(msgmsg->m_szCvarName, "e_viewmodel_fov") ||
-					!strcmp(msgmsg->m_szCvarName, "e_viewmodel_up") )
-				{
-					ReturnCvarValue(pThis, eQueryCvarValueStatus_ValueIntact, msgmsg->m_iCookie, msgmsg->m_szCvarName, "0");
-					continue;
-				}   
-
-				if (!strcmp(msgmsg->m_szCvarName, "net_blockmsg"))
-				{
-					ReturnCvarValue(pThis, eQueryCvarValueStatus_ValueIntact, msgmsg->m_iCookie, msgmsg->m_szCvarName, "none");
-					continue;
-				}
-			
-				if (!strcmp(msgmsg->m_szCvarName, "net_compresspackets_minsize"))
-				{
-					ReturnCvarValue(pThis, eQueryCvarValueStatus_ValueIntact, msgmsg->m_iCookie, msgmsg->m_szCvarName, "128");
-					continue; 
-				} 
-				
-				if (!strcmp(msgmsg->m_szCvarName, "windows_speaker_config"))
-				{
-					ReturnCvarValue(pThis, eQueryCvarValueStatus_ValueIntact, msgmsg->m_iCookie, msgmsg->m_szCvarName, "4");
-					continue;
-				}
-				 
-				if (!strcmp(msgmsg->m_szCvarName, "net_compresspackets"))
-				{
-					ReturnCvarValue(pThis, eQueryCvarValueStatus_ValueIntact, msgmsg->m_iCookie, msgmsg->m_szCvarName, "1");
-					continue;
-				}
-
-				if (!strcmp(msgmsg->m_szCvarName, "pyro_vignette"))
-				{
-					ReturnCvarValue(pThis, eQueryCvarValueStatus_ValueIntact, msgmsg->m_iCookie, msgmsg->m_szCvarName, "2");
-					continue;
-				}
 			}   
 			   
 			if (srcds) 
