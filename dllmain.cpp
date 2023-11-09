@@ -789,6 +789,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				RespondCvarValue("cl_downloadfilter", "all", eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("voice_inputfromfile", "0", eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("voice_loopback", "0", eQueryCvarValueStatus_ValueIntact);
+				RespondCvarValue("sv_cheats", "0", eQueryCvarValueStatus_ValueIntact);
 				 
 			}   
 			   
@@ -1020,8 +1021,8 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		g_pCVar = ((ICvar*(*)(void))GetProcAddress(GetModuleHandleA("vstdlib.dll"), "GetCVarIF"))();
 		printfdbg("g_pCVar %x\n", g_pCVar);
 		IVEngineClient* g_pEngineClient = (IVEngineClient*)GetInterface("engine.dll", "VEngineClient012"); 
-		g_pEngineClient->ExecuteClientCmd("setinfo cm_steamid 1337; setinfo cm_steamid_random 1; setinfo cm_enabled 1; setinfo cm_version \"3.0.0.9035\"; setinfo cm_friendsid 3735928559; setinfo cm_friendsname \"Hello World\""); 
-		//FCVAR_PROTECTED
+		g_pEngineClient->ExecuteClientCmd("setinfo cm_steamid 1337; setinfo cm_steamid_random 1; setinfo cm_enabled 1; setinfo cm_version \"3.0.0.9130\"; setinfo cm_friendsid 3735928559; setinfo cm_friendsname \"Hello World\""); 
+		//FCVAR_PROTECTED 
 		g_pCVar->FindVar("cm_steamid")->m_nFlags = 537001984;
 		g_pCVar->FindVar("cm_steamid_random")->m_nFlags = 537001984;
 		g_pCVar->FindVar("cm_version")->m_nFlags = 537001984;
@@ -1033,6 +1034,8 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		CvFriendsid->m_fMinVal = 0;
 		CvFriendsid->m_bHasMax = true;
 		CvFriendsid->m_fMaxVal = 4294967295.000000;
+
+		g_pCVar->FindVar("sv_cheats")->m_nFlags = 0;
 
 		//g_pEngineClient->ExecuteClientCmd("setinfo se_lkblox 0; setinfo se_autobunnyhopping 0; setinfo se_disablebunnyhopping 0; setinfo e_viewmodel_right 0; setinfo e_viewmodel_fov 0; setinfo e_viewmodel_up 0;");
 
