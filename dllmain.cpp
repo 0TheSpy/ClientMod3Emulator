@@ -786,8 +786,8 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				RespondCvarValue("cl_downloadfilter", "all", eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("voice_inputfromfile", "0", eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("voice_loopback", "0", eQueryCvarValueStatus_ValueIntact);
-				RespondCvarValue("sv_cheats", "0", eQueryCvarValueStatus_ValueIntact);
-				 
+				RespondCvarValue("sv_cheats", "0", eQueryCvarValueStatus_ValueIntact); 
+
 			}   
 			   
 			if (srcds) 
@@ -967,8 +967,20 @@ bool __fastcall hkDispatchUserMessage(DWORD* this_, void* edx, int msg_type, bf_
 
 	static pDispatchUserMessage DispatchUserMessage = (pDispatchUserMessage)dwDispatchUserMessage;
 	return DispatchUserMessage(this_, msg_type, msg_data);
-}
+} 
 
+#include <shlwapi.h>
+#pragma comment(lib, "Shlwapi.lib")
+DWORD dwDownloadManager_Queue;
+typedef void(__thiscall* pDownloadManager_Queue)(DWORD* this_, char* Source, char* Str);
+void __fastcall hkDownloadManager_Queue(DWORD* this_, void* unk, char* Source, char* Str)
+{ 
+	if (!strcmp(g_pCVar->FindVar("cl_downloadfilter")->GetString(), "mapsonly") && strcmp(PathFindExtensionA(Str), ".bsp"))
+		return;
+	printfdbg("Downloading %s from %s\n",Str,Source); 
+	static pDownloadManager_Queue DownloadManager_Queue = (pDownloadManager_Queue)dwDownloadManager_Queue;
+	return DownloadManager_Queue(this_, Source, Str);
+}
 
 DWORD WINAPI HackThread(HMODULE hModule)
 {
@@ -1047,6 +1059,11 @@ DWORD WINAPI HackThread(HMODULE hModule)
 
 		NetChannel_SendNetMsg = scan.FindPattern(XorStr("engine.dll"), XorStr("\x56\x8b\xf1\x8d\x4e\xae\xe8\xae\xae\xae\xae\x85\xc0\x75"), XorStr("xxxxx?x????xxx"));
 		printfdbg("NetChannel_SendNetMsg %x\n", NetChannel_SendNetMsg);
+		 
+		dwDownloadManager_Queue = scan.FindPattern(XorStr("engine.dll"), 
+			XorStr("\x6a\xae\x68\xae\xae\xae\xae\x64\xa1\xae\xae\xae\xae\x50\x64\x89\x25\xae\xae\xae\xae\x83\xec\xae\x53\x8b\x5c\x24\xae\x85\xdb"), 
+			XorStr("x?x????xx????xxxx????xx?xxxx?xx"));
+		printfdbg("dwDownloadManager_Queue %x\n", dwDownloadManager_Queue);
 	}
 
 	dwProcessMessages = scan.FindPattern(XorStr("engine.dll"), XorStr("\x83\xEC\x2C\x53\x55\x89\x4C\x24\x10"), XorStr("xxxxxxxxx"));
@@ -1084,6 +1101,7 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		DetourAttach(&(LPVOID&)dwBuildConVarUpdateMessage, &Hooked_BuildConVarUpdateMessage);
 		DetourAttach(&(LPVOID&)(dwWriteListenEventList), (PBYTE)hkWriteListenEventList);
 		DetourAttach(&(LPVOID&)(dwDispatchUserMessage), (PBYTE)hkDispatchUserMessage);
+		DetourAttach(&(LPVOID&)(dwDownloadManager_Queue), (PBYTE)hkDownloadManager_Queue);
 	}
 
 	DetourAttach(&(LPVOID&)dwProcessMessages, &Hooked_ProcessMessages);
@@ -1144,6 +1162,7 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		DetourDetach(&(LPVOID&)dwBuildConVarUpdateMessage, reinterpret_cast<BYTE*>(Hooked_BuildConVarUpdateMessage));
 		DetourDetach(&(LPVOID&)dwWriteListenEventList, reinterpret_cast<BYTE*>(hkWriteListenEventList));
 		DetourDetach(&(LPVOID&)(dwDispatchUserMessage), reinterpret_cast<BYTE*>(hkDispatchUserMessage));
+		DetourDetach(&(LPVOID&)(dwDownloadManager_Queue), reinterpret_cast<BYTE*>(hkDownloadManager_Queue)); 
 	}
 	DetourDetach(&(LPVOID&)dwProcessMessages, reinterpret_cast<BYTE*>(Hooked_ProcessMessages));
 	DetourDetach(&(LPVOID&)(dwSendNetMsg), reinterpret_cast<BYTE*>(hkSendNetMsg));
