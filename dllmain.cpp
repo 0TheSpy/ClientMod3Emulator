@@ -407,7 +407,7 @@ void Hooked_BuildConVarUpdateMessage(NET_SetConVar* cvarMsg, int flags, bool non
 	BuildConVarUpdateMessage(cvarMsg, flags, nonDefault);
 	 
 	NET_SetConVar::cvar_t acvar;
-
+	 
 	if (g_pCVar->FindVar("cm_enabled")->GetInt())
 	{
 		strncpy(acvar.name, XorStr("clantag"), MAX_OSPATH);
@@ -757,7 +757,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 			} 
 			  
 			if (cmd != net_Tick && cmd != svc_PacketEntities && cmd != svc_UserMessage && cmd != clc_Move && 
-				cmd != svc_Sounds  && cmd != svc_GameEvent) //&& cmd != svc_TempEntities
+				cmd != svc_Sounds  && cmd != svc_GameEvent)
 				printfdbg("Income msg %d from %s: %s\n", cmd, pThis->GetAddress(), netmsg->ToString());
 			   
 			if (cmd == svc_GetCvarValue)
@@ -770,6 +770,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				RespondCvarValue("cm_enabled", "", eQueryCvarValueStatus_CvarNotFound);
 				RespondCvarValue("cm_friendsname", "", eQueryCvarValueStatus_CvarNotFound);
 				RespondCvarValue("cm_friendsid", "", eQueryCvarValueStatus_CvarNotFound); 
+				RespondCvarValue("cm_tempents", "", eQueryCvarValueStatus_CvarNotFound); 
 				RespondCvarValue("se_lkblox", "0", eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("se_autobunnyhopping", "0", eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("se_disablebunnyhopping", "0", eQueryCvarValueStatus_ValueIntact);
@@ -822,7 +823,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 			}
 			else
 			{
-				if (cmd == svc_FixAngle || cmd == svc_SetPause || cmd == svc_TempEntities)
+				if (cmd == svc_FixAngle || cmd == svc_SetPause || ((cmd == svc_TempEntities) && !(g_pCVar->FindVar("cm_tempents")->GetInt())))
 				{
 					printfdbg("Message rejected\n");
 					continue;
@@ -925,12 +926,14 @@ bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg,  b
 	if (cmd == clc_ClientInfo)
 	{
 		CLC_ClientInfo* Cl = (CLC_ClientInfo*)&msg;
-		Cl->m_nFriendsID = uint32(atof(g_pCVar->FindVar("cm_friendsid")->GetString())); 
-		strncpy(Cl->m_FriendsName, g_pCVar->FindVar("cm_friendsname")->GetString(), 32);
+		Cl->m_nFriendsID = uint32(atof(g_pCVar->FindVar("cm_friendsid")->GetString()));  
+		strncpy(Cl->m_FriendsName, g_pCVar->FindVar("cm_friendsname")->GetString(), 32); 
+		/*
 		Cl->m_nCustomFiles[0] = 0;
 		Cl->m_nCustomFiles[1] = 0;
 		Cl->m_nCustomFiles[2] = 0;
 		Cl->m_nCustomFiles[3] = 0;
+		*/
 	}
 	    
 	static pSendNetMsg SendNetMsg = (pSendNetMsg)dwSendNetMsg; 
@@ -1035,7 +1038,7 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		g_pCVar = ((ICvar*(*)(void))GetProcAddress(GetModuleHandleA("vstdlib.dll"), "GetCVarIF"))();
 		printfdbg("g_pCVar %x\n", g_pCVar);
 		IVEngineClient* g_pEngineClient = (IVEngineClient*)GetInterface("engine.dll", "VEngineClient012"); 
-		g_pEngineClient->ExecuteClientCmd("setinfo cm_steamid 1337; setinfo cm_steamid_random 1; setinfo cm_enabled 1; setinfo cm_version \"3.0.0.9130\"; setinfo cm_friendsid 3735928559; setinfo cm_friendsname \"Hello World\""); 
+		g_pEngineClient->ExecuteClientCmd("setinfo cm_steamid 1337; setinfo cm_steamid_random 1; setinfo cm_enabled 1; setinfo cm_version \"3.0.0.9130\"; setinfo cm_friendsid 3735928559; setinfo cm_tempents 0; setinfo cm_friendsname \"Hello World\""); 
 		//FCVAR_PROTECTED 
 		g_pCVar->FindVar("cm_steamid")->m_nFlags = 537001984;
 		g_pCVar->FindVar("cm_steamid_random")->m_nFlags = 537001984;
@@ -1048,6 +1051,7 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		CvFriendsid->m_fMinVal = 0;
 		CvFriendsid->m_bHasMax = true;
 		CvFriendsid->m_fMaxVal = 4294967295.000000; 
+		g_pCVar->FindVar("cm_tempents")->m_nFlags = 537001984;
 		g_pCVar->FindVar("sv_cheats")->m_nFlags = 0; 
 		g_pCVar->FindVar("cl_downloadfilter")->m_pszHelpString = "Determines which files can be downloaded from the server(all, none, nosounds, mapsonly)"; 
 
