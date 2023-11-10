@@ -714,7 +714,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 			}
 			 
 			if (cmd == svc_UserMessage)
-			{
+			{ 
 				auto msgType = buf.ReadByte();
 				auto dataLengthInBits = buf.ReadUBitLong(11);
 				assert(math::BitsToBytes(data->dataLengthInBits) <= MAX_USER_MSG_DATA); 
@@ -729,7 +729,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				
 				buf = backup;
 			}
-
+			  
 			if (!srcds) {
 				if (cmd == svc_Menu)
 				{
@@ -757,7 +757,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 			} 
 			  
 			if (cmd != net_Tick && cmd != svc_PacketEntities && cmd != svc_UserMessage && cmd != clc_Move &&
-				cmd != svc_Sounds && cmd != svc_GameEvent)
+				cmd != svc_Sounds && cmd != svc_GameEvent && cmd != svc_TempEntities)
 			{
 				printfdbg("Income msg %d from %s: %s", cmd, pThis->GetAddress(), netmsg->ToString()); 
 				if (!srcds)
