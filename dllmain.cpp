@@ -215,6 +215,7 @@ bool __fastcall Hooked_PrepareSteamConnectResponse(DWORD* ecx, void* edx, int ke
 #define clc_Move 9
 #define clc_ListenEvents 12
 #define clc_RespondCvarValue 25 
+#define clc_BaselineAck 11
 
 #define svc_FixAngle 19
 #define svc_SetPause 11
@@ -906,7 +907,7 @@ typedef bool(__thiscall* pSendNetMsg)(INetChannel* pNetChan, INetMessage& msg, b
 bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg,  bool bVoice)
 { 
 	int cmd = msg.GetType();
-	if (cmd != net_Tick && cmd != clc_Move && cmd != svc_UserMessage && cmd != svc_GameEvent)
+	if (cmd != net_Tick && cmd != clc_Move && cmd != svc_UserMessage && cmd != svc_GameEvent && cmd != clc_BaselineAck)
 		printfdbg("Outcome msg %d: %s\n", cmd, msg.ToString()); //msg.GetName()
 	       
 	if (cmd == svc_UserMessage)
@@ -944,7 +945,7 @@ bool __fastcall hkDispatchUserMessage(DWORD* this_, void* edx, int msg_type, bf_
 	if (msg_type < 0 || msg_type >= this_[5])
 		return false;
 
-	if (msg_type == 11 || msg_type == 12 || msg_type == 20) //Shake Fade Damage
+	if (msg_type == 11 || msg_type == 12) //Shake Fade 
 	{ 
 		printfdbg("DispatchUserMessage: %s (%d) Rejected\n", ((char* (__thiscall*)(void*, int))dwGetUserMessageName)(this_, msg_type), msg_type);
 		return true;
