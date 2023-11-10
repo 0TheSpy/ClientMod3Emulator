@@ -756,10 +756,19 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				return false;
 			} 
 			  
-			if (cmd != net_Tick && cmd != svc_PacketEntities && cmd != svc_UserMessage && cmd != clc_Move && 
-				cmd != svc_Sounds  && cmd != svc_GameEvent)
-				printfdbg("Income msg %d from %s: %s\n", cmd, pThis->GetAddress(), netmsg->ToString());
-			   
+			if (cmd != net_Tick && cmd != svc_PacketEntities && cmd != svc_UserMessage && cmd != clc_Move &&
+				cmd != svc_Sounds && cmd != svc_GameEvent)
+			{
+				printfdbg("Income msg %d from %s: %s", cmd, pThis->GetAddress(), netmsg->ToString()); 
+				if (!srcds)
+					if (cmd == svc_FixAngle || cmd == svc_SetPause || ((cmd == svc_TempEntities) && !(g_pCVar->FindVar("cm_tempents")->GetInt())))
+					{
+						printfdbg(" Rejected\n");
+						continue;
+					}
+				printfdbg("\n");
+			}
+
 			if (cmd == svc_GetCvarValue)
 			{
 				SVC_GetCvarValue* msgmsg = (SVC_GetCvarValue*)netmsg; 
@@ -820,15 +829,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 						printfdbg("%08x ", *(uint*)((int)netmsg + 0x10 + i * 4));
 					printfdbg("\n");
 				}  
-			}
-			else
-			{
-				if (cmd == svc_FixAngle || cmd == svc_SetPause || ((cmd == svc_TempEntities) && !(g_pCVar->FindVar("cm_tempents")->GetInt())))
-				{
-					printfdbg("Message rejected\n");
-					continue;
-				}
-			}
+			} 
 			 
 			if (!netmsg->Process())
 			{
