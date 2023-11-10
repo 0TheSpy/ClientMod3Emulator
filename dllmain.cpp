@@ -757,9 +757,9 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 			} 
 			  
 			if (cmd != net_Tick && cmd != svc_PacketEntities && cmd != svc_UserMessage && cmd != clc_Move && 
-				cmd != svc_Sounds && cmd != svc_TempEntities && cmd != svc_GameEvent)
+				cmd != svc_Sounds  && cmd != svc_GameEvent) //&& cmd != svc_TempEntities
 				printfdbg("Income msg %d from %s: %s\n", cmd, pThis->GetAddress(), netmsg->ToString());
-			  
+			   
 			if (cmd == svc_GetCvarValue)
 			{
 				SVC_GetCvarValue* msgmsg = (SVC_GetCvarValue*)netmsg; 
@@ -822,7 +822,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 			}
 			else
 			{
-				if (cmd == svc_FixAngle || cmd == svc_SetPause)
+				if (cmd == svc_FixAngle || cmd == svc_SetPause || cmd == svc_TempEntities)
 				{
 					printfdbg("Message rejected\n");
 					continue;
