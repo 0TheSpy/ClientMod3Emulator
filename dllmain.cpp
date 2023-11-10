@@ -757,7 +757,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 			} 
 			  
 			if (cmd != net_Tick && cmd != svc_PacketEntities && cmd != svc_UserMessage && cmd != clc_Move &&
-				cmd != svc_Sounds && cmd != svc_GameEvent && cmd != svc_TempEntities)
+				cmd != svc_Sounds && cmd != svc_GameEvent)
 			{
 				printfdbg("Income msg %d from %s: %s", cmd, pThis->GetAddress(), netmsg->ToString()); 
 				if (!srcds)
