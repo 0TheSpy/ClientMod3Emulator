@@ -684,7 +684,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				int eventid = buf.ReadUBitLong(MAX_EVENT_BITS); 
 				const char* name = GetEventName(eventid);
 				  
-				printfdbg("Event: %s (%d)\n", name, eventid); 
+				printfdbg("svc_GameEvent: %s (%d)\n", name, eventid); 
 
 				if (name && !strcmp(name, "player_disconnect"))  
 				{      
@@ -921,7 +921,7 @@ bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg,  b
 	if (cmd == svc_GameEvent)
 	{   
 		byte eventID = *(DWORD*)((DWORD)&msg + 0x44); 
-		printfdbg("Event %s (%d).\n", GetEventName(eventID), eventID);   
+		printfdbg("svc_GameEvent: %s (%d).\n", GetEventName(eventID), eventID);   
 	}    
 
 	if (cmd == clc_ClientInfo)
@@ -947,11 +947,11 @@ typedef bool(__thiscall* pDispatchUserMessage)(void* this_, int msg_type, bf_rea
 bool __fastcall hkDispatchUserMessage(DWORD* this_, void* edx, int msg_type, bf_read& msg_data)
 {  
 	if (msg_type < 0 || msg_type >= this_[5])
-		return false;
+		return false; 
 
 	if (msg_type == 11 || msg_type == 12) //Shake Fade 
 	{ 
-		printfdbg("DispatchUserMessage: %s (%d) Rejected\n", ((char* (__thiscall*)(void*, int))dwGetUserMessageName)(this_, msg_type), msg_type);
+		printfdbg("svc_UserMessage: %s (%d) Rejected\n", ((char* (__thiscall*)(void*, int))dwGetUserMessageName)(this_, msg_type), msg_type);
 		return true;
 	}
 	else
@@ -960,13 +960,13 @@ bool __fastcall hkDispatchUserMessage(DWORD* this_, void* edx, int msg_type, bf_
 			bf_read backup = msg_data;
 			char name[1024];
 			msg_data.ReadString(name, sizeof(name));
-			printfdbg("DispatchUserMessage: %s (%d): %s\n", ((char* (__thiscall*)(void*, int))dwGetUserMessageName)(this_, msg_type), msg_type, name);
+			printfdbg("svc_UserMessage: %s (%d): %s\n", ((char* (__thiscall*)(void*, int))dwGetUserMessageName)(this_, msg_type), msg_type, name);
 			if (!strcmp(name, XorStr("info"))) 
 				return true;  
 			msg_data = backup;
 		}
 		else
-			printfdbg("DispatchUserMessage: %s (%d)\n", ((char* (__thiscall*)(void*, int))dwGetUserMessageName)(this_, msg_type), msg_type);
+			printfdbg("svc_UserMessage: %s (%d)\n", ((char* (__thiscall*)(void*, int))dwGetUserMessageName)(this_, msg_type), msg_type);
 
 
 	static pDispatchUserMessage DispatchUserMessage = (pDispatchUserMessage)dwDispatchUserMessage;
