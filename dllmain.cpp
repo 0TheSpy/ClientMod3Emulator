@@ -10,17 +10,16 @@ bool srcds = false;
 #include <iostream>  
 
 int (WINAPIV* __vsnprintf)(char*, size_t, const char*, va_list) = _vsnprintf;
-
-#include <dbg.h>
+ 
 #include <inetmessage.h>
 #include <inetchannelinfo.h>
 #include <inetmsghandler.h>
 #include <utlvector.h>
 #include <inetchannel.h>
-#include <cdll_int.h>
+//#include <cdll_int.h>
+class IVEngineClient;
 #include <memory>
-#include <string>
-#include <type_traits>
+#include <string> 
 #include <checksum_crc.h>
 #include <memalloc.h>
 #include <bitbuf.h>
@@ -1051,7 +1050,9 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		g_pCVar = ((ICvar*(*)(void))GetProcAddress(GetModuleHandleA("vstdlib.dll"), "GetCVarIF"))();
 		printfdbg("g_pCVar %x\n", g_pCVar);
 		IVEngineClient* g_pEngineClient = (IVEngineClient*)GetInterface("engine.dll", "VEngineClient012"); 
-		g_pEngineClient->ExecuteClientCmd("setinfo cm_steamid 1337; setinfo cm_steamid_random 1; setinfo cm_enabled 1; setinfo cm_version \"3.0.0.9130\"; setinfo cm_friendsid 3735928559; setinfo cm_drawspray 0; setinfo cm_friendsname \"Hello World\""); 
+		CallVFunction<INetChannelHandler* (__thiscall*)(void*, char*)>(g_pEngineClient, 97)(g_pEngineClient, //g_pEngineClient->ExecuteClientCmd
+			"setinfo cm_steamid 1337; setinfo cm_steamid_random 1; setinfo cm_enabled 1; setinfo cm_version \"3.0.0.9130\"; setinfo cm_friendsid 3735928559; setinfo cm_drawspray 0; setinfo cm_friendsname \"Hello World\""); 
+		
 		//FCVAR_PROTECTED 
 		g_pCVar->FindVar("cm_steamid")->m_nFlags = 537001984;
 		g_pCVar->FindVar("cm_steamid_random")->m_nFlags = 537001984;
