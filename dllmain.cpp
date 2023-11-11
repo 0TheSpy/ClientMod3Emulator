@@ -96,6 +96,7 @@ VOID MessageBoxA_(LPCSTR Title, LPCSTR Text)
 DWORD dwProcessMessages;
 DWORD dwPrepareSteamConnectResponse;
 DWORD dwGetUserMessageName;
+DWORD dwClientState = 0;
 
 template<typename FuncType>
 __forceinline static FuncType CallVFunction(void* ppClass, int index)
@@ -729,7 +730,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				
 				buf = backup;
 			}
-			  
+ 
 			if (!srcds) {
 				if (cmd == svc_Menu)
 				{
@@ -757,11 +758,11 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 			} 
 			  
 			if (cmd != net_Tick && cmd != svc_PacketEntities && cmd != svc_UserMessage && cmd != clc_Move &&
-				cmd != svc_Sounds && cmd != svc_GameEvent)
+				cmd != svc_Sounds && cmd != svc_GameEvent && cmd != svc_TempEntities)
 			{
 				printfdbg("Income msg %d from %s: %s", cmd, pThis->GetAddress(), netmsg->ToString()); 
 				if (!srcds)
-					if (cmd == svc_FixAngle || cmd == svc_SetPause || ((cmd == svc_TempEntities) && !(g_pCVar->FindVar("cm_tempents")->GetInt())))
+					if (cmd == svc_FixAngle || cmd == svc_SetPause)
 					{
 						printfdbg(" Rejected\n");
 						continue;
@@ -986,6 +987,17 @@ void __fastcall hkDownloadManager_Queue(DWORD* this_, void* unk, char* baseURL, 
 	return DownloadManager_Queue(this_, baseURL, gamePath);
 }
 
+DWORD dwFindClientClass; int ClassID;
+typedef int(__cdecl* pFindClientClass)(char* event_name);
+int __cdecl hkFindClientClass(char* event_name)
+{
+	__asm mov ClassID, edx
+	printfdbg("svc_TempEntities: %s (%d)\n", event_name, ClassID >> 4); 
+	if (!(g_pCVar->FindVar("cm_tempents")->GetInt()) && !strcmp(event_name, "CTEPlayerDecal")) return false;
+	static pFindClientClass FindClientClass = (pFindClientClass)dwFindClientClass;
+	return FindClientClass(event_name); 
+}
+
 DWORD WINAPI HackThread(HMODULE hModule)
 {
 #ifdef DEBUG
@@ -1083,6 +1095,17 @@ DWORD WINAPI HackThread(HMODULE hModule)
 			XorStr("\x6a\xae\x68\xae\xae\xae\xae\x64\xa1\xae\xae\xae\xae\x50\x64\x89\x25\xae\xae\xae\xae\x83\xec\xae\x53\x8b\x5c\x24\xae\x85\xdb"), 
 			XorStr("x?x????xx????xxxx????xx?xxxx?xx"));
 		printfdbg("dwDownloadManager_Queue %x\n", dwDownloadManager_Queue);
+
+		dwClientState = scan.FindPattern(XorStr("engine.dll"),
+			XorStr("\x68\xae\xae\xae\xae\x6a\xae\xe8\xae\xae\xae\xae\x83\xc4\xae\x8b\x0d"),
+			XorStr("x????x?x????xx?xx")) + 1;
+		dwClientState = *(DWORD*)dwClientState + 4;
+		printfdbg("dwClientState %x\n", dwClientState);
+
+		dwFindClientClass = scan.FindPattern(XorStr("engine.dll"),
+			XorStr("\x56\x57\xe8\xae\xae\xae\xae\x8b\xf0\x85\xf6\x74"),
+			XorStr("xxx????xxxxx")); 
+		printfdbg("dwFindClientClass %x\n", dwFindClientClass); 
 	}
 
 	dwProcessMessages = scan.FindPattern(XorStr("engine.dll"), XorStr("\x83\xEC\x2C\x53\x55\x89\x4C\x24\x10"), XorStr("xxxxxxxxx"));
@@ -1121,6 +1144,7 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		DetourAttach(&(LPVOID&)(dwWriteListenEventList), (PBYTE)hkWriteListenEventList);
 		DetourAttach(&(LPVOID&)(dwDispatchUserMessage), (PBYTE)hkDispatchUserMessage);
 		DetourAttach(&(LPVOID&)(dwDownloadManager_Queue), (PBYTE)hkDownloadManager_Queue);
+		DetourAttach(&(LPVOID&)(dwFindClientClass), (PBYTE)hkFindClientClass);
 	}
 
 	DetourAttach(&(LPVOID&)dwProcessMessages, &Hooked_ProcessMessages);
@@ -1181,7 +1205,8 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		DetourDetach(&(LPVOID&)dwBuildConVarUpdateMessage, reinterpret_cast<BYTE*>(Hooked_BuildConVarUpdateMessage));
 		DetourDetach(&(LPVOID&)dwWriteListenEventList, reinterpret_cast<BYTE*>(hkWriteListenEventList));
 		DetourDetach(&(LPVOID&)(dwDispatchUserMessage), reinterpret_cast<BYTE*>(hkDispatchUserMessage));
-		DetourDetach(&(LPVOID&)(dwDownloadManager_Queue), reinterpret_cast<BYTE*>(hkDownloadManager_Queue)); 
+		DetourDetach(&(LPVOID&)(dwDownloadManager_Queue), reinterpret_cast<BYTE*>(hkDownloadManager_Queue));
+		DetourDetach(&(LPVOID&)(dwFindClientClass), reinterpret_cast<BYTE*>(hkFindClientClass)); 
 	}
 	DetourDetach(&(LPVOID&)dwProcessMessages, reinterpret_cast<BYTE*>(Hooked_ProcessMessages));
 	DetourDetach(&(LPVOID&)(dwSendNetMsg), reinterpret_cast<BYTE*>(hkSendNetMsg));
