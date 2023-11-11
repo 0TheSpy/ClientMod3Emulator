@@ -1050,7 +1050,7 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		g_pCVar = ((ICvar*(*)(void))GetProcAddress(GetModuleHandleA("vstdlib.dll"), "GetCVarIF"))();
 		printfdbg("g_pCVar %x\n", g_pCVar);
 		IVEngineClient* g_pEngineClient = (IVEngineClient*)GetInterface("engine.dll", "VEngineClient012"); 
-		CallVFunction<INetChannelHandler* (__thiscall*)(void*, char*)>(g_pEngineClient, 97)(g_pEngineClient, //g_pEngineClient->ExecuteClientCmd
+		CallVFunction<IVEngineClient* (__thiscall*)(void*, char*)>(g_pEngineClient, 97)(g_pEngineClient, //g_pEngineClient->ExecuteClientCmd
 			"setinfo cm_steamid 1337; setinfo cm_steamid_random 1; setinfo cm_enabled 1; setinfo cm_version \"3.0.0.9130\"; setinfo cm_friendsid 3735928559; setinfo cm_drawspray 0; setinfo cm_friendsname \"Hello World\""); 
 		
 		//FCVAR_PROTECTED 
