@@ -96,13 +96,14 @@ DWORD dwProcessMessages;
 DWORD dwPrepareSteamConnectResponse;
 DWORD dwGetUserMessageName;
 DWORD dwClientState = 0;
+IVEngineClient* g_pEngineClient = 0;
 
 template<typename FuncType>
 __forceinline static FuncType CallVFunction(void* ppClass, int index)
 {
 	int* pVTable = *(int**)ppClass;
 	int dwAddress = pVTable[index];
-	printfdbg("vTable %x dwAddr(%x):%x\n", pVTable, index, dwAddress);
+	//printfdbg("vTable %x dwAddr(%x):%x\n", pVTable, index, dwAddress);
 	return (FuncType)(dwAddress);
 }
 
@@ -203,6 +204,7 @@ bool __fastcall Hooked_PrepareSteamConnectResponse(DWORD* ecx, void* edx, int ke
 #define	svc_GameEvent		25	// global game event fired
 #define	net_Tick		3	 
 #define net_StringCmd 4
+#define net_SignonState 6
 #define	svc_PacketEntities		26	
 #define	svc_UserMessage		23	
 #define	svc_Menu		29
@@ -732,9 +734,9 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 			}
  
 			if (!srcds) {
-
+				 
 				if (cmd == svc_ServerInfo)
-				{
+				{  
 					printfdbg("svc_ServerInfo:\n");
 					printfdbg("m_nProtocol %d\n", (uint16)buf.ReadUBitLong(16));
 					printfdbg("m_nServerCount %d\n", (uint16)buf.ReadUBitLong(32));
@@ -751,13 +753,13 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 					char MapName[1024]; buf.ReadString(MapName, sizeof(MapName));
 					char SkyName[1024]; buf.ReadString(SkyName, sizeof(SkyName));
 					char HostName[1024]; buf.ReadString(HostName, sizeof(HostName));
-					printfdbg("m_szGameDirBuffer %s\n", GameDir);
+					printfdbg("m_szGameDirBuffer %s\n", GameDir); 
 					printfdbg("m_szMapNameBuffer %s\n", MapName);
 					printfdbg("m_szSkyNameBuffer %s\n", SkyName);
-					printfdbg("m_szHostNameBuffer %s\n", HostName);
+					printfdbg("m_szHostNameBuffer %s\n", HostName);  
 					buf = backup;
 				}
-				
+
 				if (cmd == svc_Menu)
 				{
 					short Type = (short)buf.ReadUBitLong(16);
@@ -806,6 +808,8 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				RespondCvarValue("cm_enabled", "", eQueryCvarValueStatus_CvarNotFound);
 				RespondCvarValue("cm_friendsname", "", eQueryCvarValueStatus_CvarNotFound);
 				RespondCvarValue("cm_friendsid", "", eQueryCvarValueStatus_CvarNotFound); 
+				RespondCvarValue("cm_forcemap", "", eQueryCvarValueStatus_CvarNotFound);
+				RespondCvarValue("cm_forcemap_enabled", "", eQueryCvarValueStatus_CvarNotFound);
 				RespondCvarValue("cm_drawspray", "", eQueryCvarValueStatus_CvarNotFound); 
 				RespondCvarValue("se_lkblox", "0", eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("se_autobunnyhopping", "0", eQueryCvarValueStatus_ValueIntact);
@@ -1024,6 +1028,44 @@ int __cdecl hkFindClientClass(char* event_name)
 	return FindClientClass(event_name); 
 }
 
+DWORD dwSVC_ServerInfo_ReadFromBuffer = 0;
+typedef char* (__thiscall* pSVC_ServerInfo_ReadFromBuffer)(int this_, int buf);
+bool __fastcall hkSVC_ServerInfo_ReadFromBuffer(int this_, void* unk, int buf)
+{
+	static pSVC_ServerInfo_ReadFromBuffer SVC_ServerInfo_ReadFromBuffer = (pSVC_ServerInfo_ReadFromBuffer)dwSVC_ServerInfo_ReadFromBuffer;
+	auto ret = SVC_ServerInfo_ReadFromBuffer(this_, buf);
+
+	if (g_pCVar->FindVar("cm_forcemap_enabled")->GetInt())
+	{
+		int v11 = this_ + 328; 
+		strncpy((char*)v11, g_pCVar->FindVar("cm_forcemap")->GetString(), 128);
+		//*(DWORD*)(this_ + 28) = 4105947211; //m_nMapCRC
+	}
+	return ret;
+}
+
+DWORD dwCMapLoader_Init = 0; char* maptoload;
+typedef int (__cdecl* pCMapLoader_Init)(int a1, char* Source);
+int __cdecl hkCMapLoader_Init(int a1, char* Source)
+{   
+	__asm mov eax, esp
+	__asm mov eax, [eax+0xC]
+	__asm add eax, 4
+	__asm mov maptoload, eax 
+	printfdbg("CMapLoaderInit %s\n",Source); 
+
+	if ((int)maptoload != 4) { 
+		if (g_pCVar->FindVar("cm_forcemap_enabled")->GetInt())
+			sprintf(maptoload, "maps/%s.bsp", g_pCVar->FindVar("cm_forcemap")->GetString());
+		else
+			strncpy(maptoload, CallVFunction<char* (__thiscall*)(void*)>(g_pEngineClient, 52)(g_pEngineClient), 64); //GetLevelName
+	} 
+
+	static pCMapLoader_Init CMapLoader_Init = (pCMapLoader_Init)dwCMapLoader_Init;
+	auto ret = CMapLoader_Init(a1, Source);  
+	return ret;
+}
+
 DWORD WINAPI HackThread(HMODULE hModule)
 {
 #ifdef DEBUG
@@ -1057,6 +1099,8 @@ DWORD WINAPI HackThread(HMODULE hModule)
 
 	g_GameEventManager = (CGameEventManager*)GetInterface("engine.dll", "GAMEEVENTSMANAGER002");
 	 
+	g_pEngineClient = (IVEngineClient*)GetInterface("engine.dll", "VEngineClient012");
+
 	if (!srcds) { 
 		DWORD dwEngine = (DWORD)GetModuleHandleA("engine.dll");
 
@@ -1072,14 +1116,13 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		g_pGameConsole->ColorPrintf(clr2, "atryrkakiv\n");
 		g_pGameConsole->ColorPrintf(clr1, "Compile time: ");
 		g_pGameConsole->ColorPrintf(clr2, ctime(&CompileTime));
-		
-
+		 
 		g_pCVar = ((ICvar*(*)(void))GetProcAddress(GetModuleHandleA("vstdlib.dll"), "GetCVarIF"))();
 		printfdbg("g_pCVar %x\n", g_pCVar);
-		IVEngineClient* g_pEngineClient = (IVEngineClient*)GetInterface("engine.dll", "VEngineClient012"); 
-		CallVFunction<IVEngineClient* (__thiscall*)(void*, char*)>(g_pEngineClient, 97)(g_pEngineClient, //g_pEngineClient->ExecuteClientCmd
-			"setinfo cm_steamid 1337; setinfo cm_steamid_random 1; setinfo cm_enabled 1; setinfo cm_version \"3.0.0.9130\"; setinfo cm_friendsid 3735928559; setinfo cm_drawspray 0; setinfo cm_friendsname \"Hello World\""); 
 		
+		CallVFunction<IVEngineClient* (__thiscall*)(void*, char*)>(g_pEngineClient, 97)(g_pEngineClient, //g_pEngineClient->ExecuteClientCmd
+			"setinfo cm_steamid 1337; setinfo cm_steamid_random 1; setinfo cm_enabled 1; setinfo cm_version \"3.0.0.9130\"; setinfo cm_friendsid 3735928559; setinfo cm_drawspray 0; setinfo cm_friendsname \"Hello World\"; setinfo cm_forcemap_enabled 0; setinfo cm_forcemap de_dust2"); 
+		 
 		//FCVAR_PROTECTED 
 		g_pCVar->FindVar("cm_steamid")->m_nFlags = 537001984;
 		g_pCVar->FindVar("cm_steamid_random")->m_nFlags = 537001984;
@@ -1095,6 +1138,8 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		g_pCVar->FindVar("cm_drawspray")->m_nFlags = 537001984;
 		g_pCVar->FindVar("sv_cheats")->m_nFlags = 0; 
 		g_pCVar->FindVar("cl_downloadfilter")->m_pszHelpString = "Determines which files can be downloaded from the server(all, none, nosounds, mapsonly)"; 
+		g_pCVar->FindVar("cm_forcemap_enabled")->m_nFlags = 537001984;
+		g_pCVar->FindVar("cm_forcemap")->m_nFlags = 537001984;
 
 		//g_pEngineClient->ExecuteClientCmd("setinfo se_lkblox 0; setinfo se_autobunnyhopping 0; setinfo se_disablebunnyhopping 0; setinfo e_viewmodel_right 0; setinfo e_viewmodel_fov 0; setinfo e_viewmodel_up 0;");
 
@@ -1104,7 +1149,7 @@ DWORD WINAPI HackThread(HMODULE hModule)
 
 		NetChannel_SendNetMsg = scan.FindPattern(XorStr("engine.dll"), XorStr("\x56\x8b\xf1\x8d\x4e\xae\xe8\xae\xae\xae\xae\x85\xc0\x75"), XorStr("xxxxx?x????xxx"));
 		printfdbg("NetChannel_SendNetMsg %x\n", NetChannel_SendNetMsg);
-		
+
 		/*
 		auto CBaseClientState_ProcessGetCvarValue = scan.FindPattern(XorStr("engine.dll"), XorStr("\xff\x92\xae\xae\xae\xae\x83\xc8\xae\x89\x84\x24\xae\xae\xae\xae\xc7\x44\x24\xae\xae\xae\xae\xae\x89\x84\x24\xae\xae\xae\xae\x8b\x8c\x24"),
 			XorStr("xx????xx?xxx????xxx?????xxx????xxx"));
@@ -1134,6 +1179,24 @@ DWORD WINAPI HackThread(HMODULE hModule)
 			XorStr("\x56\x57\xe8\xae\xae\xae\xae\x8b\xf0\x85\xf6\x74"),
 			XorStr("xxx????xxxxx")); 
 		printfdbg("dwFindClientClass %x\n", dwFindClientClass); 
+
+		//MapPatch 
+		DWORD oldProtect;
+		DWORD BadInlineModel = scan.FindPattern(XorStr("engine.dll"), XorStr("\x7c\xae\x83\x7e\xae\xae\x75\xae\x33\xc0"), XorStr("x?xx??x?xx"));
+		if (BadInlineModel) {
+			VirtualProtect((PVOID)(BadInlineModel), 0x100, PAGE_EXECUTE_READWRITE, &oldProtect);
+			*(WORD*)BadInlineModel = 0x9090; *(BYTE*)(BadInlineModel + 0x11) = 0xEB;
+		}
+		DWORD MapVersionExpecting = scan.FindPattern(XorStr("engine.dll"), XorStr("\x7c\xae\x83\xf8\xae\x7e\xae\x6a"), XorStr("x?xx?x?x"));
+		if (MapVersionExpecting) {
+			VirtualProtect((PVOID)(MapVersionExpecting), 0x100, PAGE_EXECUTE_READWRITE, &oldProtect);
+			*(WORD*)MapVersionExpecting = 0x9090; *(BYTE*)(MapVersionExpecting + 0x5) = 0xEB;
+		}
+		DWORD MapCheckCRC = scan.FindPattern(XorStr("engine.dll"), XorStr("\x74\xae\x8b\x0d\xae\xae\xae\xae\x8b\x11\xff\x52\xae\x84\xc0\x75\xae\x56"), XorStr("x?xx????xxxx?xxx?x"));
+		if (MapCheckCRC) {
+			VirtualProtect((PVOID)(MapCheckCRC), 0x100, PAGE_EXECUTE_READWRITE, &oldProtect);
+			*(BYTE*)(MapCheckCRC) = 0xEB;
+		}
 	}
 
 	dwProcessMessages = scan.FindPattern(XorStr("engine.dll"), XorStr("\x83\xEC\x2C\x53\x55\x89\x4C\x24\x10"), XorStr("xxxxxxxxx"));
@@ -1150,7 +1213,7 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		printfdbg("NC %x\n", NC);
 
 		dwWriteListenEventList = scan.FindPattern(XorStr("engine.dll"), XorStr("\x51\x8b\x44\x24\x08\x83\xc0\x10"), XorStr("xxxxxxxx")); //dwEngine + 0xADA80; 
-		printfdbg("dwWriteListenEventList %x\n", dwWriteListenEventList);
+		printfdbg("dwWriteListenEventList %x\n", dwWriteListenEventList); 
 	}
 	 
 	CUserMessages = reinterpret_cast<LPVOID>(*(PVOID*)(scan.FindPattern(XorStr(client_dll),XorStr("\x8b\x0d\xae\xae\xae\xae\x6a\xae\x68\xae\xae\xae\xae\xe8"), XorStr("xx????x?x????x")) + 2));
@@ -1162,7 +1225,14 @@ DWORD WINAPI HackThread(HMODULE hModule)
 
 	dwSendNetMsg = scan.FindPattern(XorStr("engine.dll"), XorStr("\xcc\x56\x8b\xf1\x8d\x4e\x74"), XorStr("xxxxxxx")) + 1; //dwEngine + 0xff950;
 	printfdbg("dwSendNetMsg %x\n", dwSendNetMsg);
-	 
+	  
+	dwSVC_ServerInfo_ReadFromBuffer = scan.FindPattern(XorStr("engine.dll"), XorStr("\x83\xec\xae\x53\x55\x56\x8b\x74\x24\xae\x57\x8b\xf9\x8d\x87"),
+		XorStr("xx?xxxxxx?xxxxx"));
+	printfdbg("dwSVC_ServerInfo_ReadFromBuffer %x\n", dwSVC_ServerInfo_ReadFromBuffer);
+
+	dwCMapLoader_Init = scan.FindPattern(XorStr("engine.dll"), XorStr("\xa1\xae\xae\xae\xae\x83\xc0\xae\x81\xec"), XorStr("x????xx?xx"));
+	printfdbg("dwCMapLoader_Init %x\n", dwCMapLoader_Init);
+
 	DetourTransactionBegin();
 	DetourUpdateThread(GetCurrentThread());
 
@@ -1172,7 +1242,9 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		DetourAttach(&(LPVOID&)(dwWriteListenEventList), (PBYTE)hkWriteListenEventList);
 		DetourAttach(&(LPVOID&)(dwDispatchUserMessage), (PBYTE)hkDispatchUserMessage);
 		DetourAttach(&(LPVOID&)(dwDownloadManager_Queue), (PBYTE)hkDownloadManager_Queue);
-		DetourAttach(&(LPVOID&)(dwFindClientClass), (PBYTE)hkFindClientClass);
+		DetourAttach(&(LPVOID&)(dwFindClientClass), (PBYTE)hkFindClientClass);  
+		DetourAttach(&(LPVOID&)(dwSVC_ServerInfo_ReadFromBuffer), (PBYTE)hkSVC_ServerInfo_ReadFromBuffer);
+		DetourAttach(&(LPVOID&)(dwCMapLoader_Init), (PBYTE)hkCMapLoader_Init); 
 	}
 
 	DetourAttach(&(LPVOID&)dwProcessMessages, &Hooked_ProcessMessages);
@@ -1196,11 +1268,9 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		memcpy((PVOID)(dwDisconnectMessage), &dscmsg, 4); // CBaseClientState::Disconnect
 	}
 #endif
-	
-
+	 
 	while (true)
-	{
-		 
+	{ 
 		if (!srcds && GetAsyncKeyState(VK_DELETE))
 			break;
 		
@@ -1234,7 +1304,9 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		DetourDetach(&(LPVOID&)dwWriteListenEventList, reinterpret_cast<BYTE*>(hkWriteListenEventList));
 		DetourDetach(&(LPVOID&)(dwDispatchUserMessage), reinterpret_cast<BYTE*>(hkDispatchUserMessage));
 		DetourDetach(&(LPVOID&)(dwDownloadManager_Queue), reinterpret_cast<BYTE*>(hkDownloadManager_Queue));
-		DetourDetach(&(LPVOID&)(dwFindClientClass), reinterpret_cast<BYTE*>(hkFindClientClass)); 
+		DetourDetach(&(LPVOID&)(dwFindClientClass), reinterpret_cast<BYTE*>(hkFindClientClass));  
+		DetourDetach(&(LPVOID&)(dwSVC_ServerInfo_ReadFromBuffer), reinterpret_cast<BYTE*>(hkSVC_ServerInfo_ReadFromBuffer));
+		DetourDetach(&(LPVOID&)(dwCMapLoader_Init), reinterpret_cast<BYTE*>(hkCMapLoader_Init)); 
 	}
 	DetourDetach(&(LPVOID&)dwProcessMessages, reinterpret_cast<BYTE*>(Hooked_ProcessMessages));
 	DetourDetach(&(LPVOID&)(dwSendNetMsg), reinterpret_cast<BYTE*>(hkSendNetMsg));
@@ -1261,7 +1333,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 	switch (ul_reason_for_call)
 	{
 	case DLL_PROCESS_ATTACH:
-	{
+	{ 
 		HANDLE hdl = CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)HackThread, hModule, 0, nullptr);
 		if (hdl) CloseHandle(hdl);
 		break;
