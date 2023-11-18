@@ -3,14 +3,14 @@
 #define DEBUG   
 #define DISCMSG
 //#define TIMEDACCESS 
-         
+
 bool srcds = false;
 
 #include <Windows.h>
 #include <iostream>  
 
 int (WINAPIV* __vsnprintf)(char*, size_t, const char*, va_list) = _vsnprintf;
- 
+
 #include <inetmessage.h>
 #include <inetchannelinfo.h>
 #include <inetmsghandler.h>
@@ -28,30 +28,30 @@ class IVEngineClient;
 #include <KeyValues.h>
 #include <time.h> 
 #include "convar.h"
- 
+
 #include "XorStr.h"
-  
+
 #include <GameUI/iGameConsole.h>
 
 #pragma comment(lib, "detours.lib")
 #include "detours.h"
 #include "sigscan.h"
- 
+
 //#pragma comment(lib, "mysqlcppconn.lib")
 #pragma comment(lib, "public/tier0.lib")
 #pragma comment(lib, "public\\tier1.lib")
 #pragma comment(lib, "public/vstdlib.lib")
 #pragma comment(lib, "public/mathlib.lib")
- 
+
 using namespace std;
- 
+
 #ifdef DEBUG
 #define printfdbg printf
 #else
 #define printfdbg(...)
 #endif
- 
-ICvar* g_pCVar = nullptr; 
+
+ICvar* g_pCVar = nullptr;
 void* CUserMessages = nullptr;
 
 #include "Emulators/Setti.h"
@@ -73,7 +73,7 @@ HMODULE hModuleWtsapi32 = LoadLibrary("Wtsapi32.dll");
 typedef BOOL(*TypeSendMessageA) (HANDLE, DWORD, LPSTR, DWORD, LPSTR, DWORD, DWORD, DWORD, DWORD*, BOOL);
 TypeSendMessageA pWTSSendMessageA;
 VOID MessageBoxA_(LPCSTR Title, LPCSTR Text)
-{ 
+{
 	DWORD response;
 
 	pWTSSendMessageA = (TypeSendMessageA)GetProcAddress(hModuleWtsapi32,
@@ -115,22 +115,22 @@ typedef bool(__thiscall* PrepareSteamConnectResponseFn)(void*, int, const char*,
 bool __fastcall Hooked_PrepareSteamConnectResponse(DWORD* ecx, void* edx, int keySize, const char* encryptionKey, uint64 unGSSteamID, bool bGSSecure, const netadr_t& adr, bf_write& msg)
 {
 	printfdbg("Hooked_PrepareSteamConnectResponse called\n");
-	 
+
 	static PrepareSteamConnectResponseFn PrepareSteamConnectResponse = (PrepareSteamConnectResponseFn)dwPrepareSteamConnectResponse;
 
 	srand(time(NULL));
 	unsigned int steamid = 0;
 	if (g_pCVar->FindVar("cm_steamid_random")->GetInt())
-		steamid = distribution(generator);   
+		steamid = distribution(generator);
 	else
 		steamid = g_pCVar->FindVar("cm_steamid")->GetInt();
-	
+
 	msg.WriteShort(0x98);
-	
+
 	msg.WriteLong('S');
 
 	char hwid[64];
-	
+
 	CreateRandomString(hwid, 32);
 	if (!RevSpoofer::Spoof(hwid, steamid))
 		return false;
@@ -185,7 +185,7 @@ bool __fastcall Hooked_PrepareSteamConnectResponse(DWORD* ecx, void* edx, int ke
 		0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 	};
 	msg.WriteBytes(staticEnd, sizeof(staticEnd));
-	
+
 	//hexDump(0, msg.m_pData, msg.GetNumBytesWritten());
 	return true;
 }
@@ -229,7 +229,7 @@ public:
 	CNetMessage() {
 		m_bReliable = true;
 		m_NetChannel = NULL;
-	} 
+	}
 
 	virtual ~CNetMessage() {};
 
@@ -241,10 +241,10 @@ public:
 	virtual void    SetNetChannel(INetChannel* netchan) { m_NetChannel = netchan; }
 	virtual bool	Process() { Assert(0); return false; };	// no handler set
 
-//protected:
+	//protected:
 	bool				m_bReliable;	// true if message should be send reliable
 	INetChannel* m_NetChannel;	// netchannel this message is from/for
-}; 
+};
 
 #define DECLARE_BASE_MESSAGE( msgtype )						\
 	public:													\
@@ -260,7 +260,7 @@ public:
 	bool Process() { return m_pMessageHandler->Process##name( this ); }\
 
 #define net_SetConVar	5			// sends one/multiple convar settings
-  
+
 class NET_SetConVar : public CNetMessage
 {
 	DECLARE_NET_MESSAGE(SetConVar);
@@ -296,7 +296,7 @@ typedef enum
 	eQueryCvarValueStatus_NotACvar = 2,		// There's a ConCommand, but it's not a ConVar.
 	eQueryCvarValueStatus_CvarProtected = 3	// The cvar was marked with FCVAR_SERVER_CAN_NOT_QUERY, so the server is not allowed to have its value.
 } EQueryCvarValueStatus;
- 
+
 typedef int QueryCvarCookie_t;
 
 #define DECLARE_CLC_MESSAGE( name )		\
@@ -373,7 +373,7 @@ class CLC_ListenEvents : public CNetMessage
 
 	int	GetGroup() const { return INetChannelInfo::SIGNON; }
 
-public: 
+public:
 	CBitVec<MAX_EVENT_NUMBER> m_EventArray;
 };
 
@@ -383,7 +383,7 @@ struct CLC_ClientInfo {
 	uint32 m_nSendTableCRC;
 	bool IsHLTV;
 	uint32	m_nFriendsID;
-	char m_FriendsName[32]; 
+	char m_FriendsName[32];
 	uint32 m_nCustomFiles[4]; //CustomFileCRC
 };
 
@@ -395,22 +395,22 @@ void* GetInterface(const char* dllname, const char* interfacename)
 	void* ointerface = CreateInterface(interfacename, &returnCode);
 	printfdbg("Interface %s/%s = %x\n", dllname, interfacename, ointerface);
 	return ointerface;
-} 
+}
 
 DWORD dwBuildConVarUpdateMessage;
 typedef void(__cdecl* BuildConVarUpdateMessageFn)(NET_SetConVar*, int, bool);
-   
+
 //https://github.com/VSES/SourceEngine2007/blob/master/src_main/engine/host.cpp
-void Hooked_BuildConVarUpdateMessage(NET_SetConVar* cvarMsg, int flags, bool nonDefault) 
+void Hooked_BuildConVarUpdateMessage(NET_SetConVar* cvarMsg, int flags, bool nonDefault)
 {
 	printfdbg("Hooked_BuildConVarUpdateMessage called\n");
 
 	static BuildConVarUpdateMessageFn BuildConVarUpdateMessage = (BuildConVarUpdateMessageFn)dwBuildConVarUpdateMessage;
-	   
+
 	BuildConVarUpdateMessage(cvarMsg, flags, nonDefault);
-	 
+
 	NET_SetConVar::cvar_t acvar;
-	 
+
 	if (g_pCVar->FindVar("cm_enabled")->GetInt())
 	{
 		strncpy(acvar.name, XorStr("clantag"), MAX_OSPATH);
@@ -421,8 +421,8 @@ void Hooked_BuildConVarUpdateMessage(NET_SetConVar* cvarMsg, int flags, bool non
 		//strncpy(acvar.value, XorStr("\nk\no\nn\nr\na\nd"), MAX_OSPATH);
 		//cvarMsg->m_ConVars.AddToTail(acvar);
 
-		strncpy(acvar.name, XorStr("_client_version"), MAX_OSPATH); 
-		strncpy(acvar.value, g_pCVar->FindVar("cm_version")->GetString(), MAX_OSPATH); 
+		strncpy(acvar.name, XorStr("_client_version"), MAX_OSPATH);
+		strncpy(acvar.value, g_pCVar->FindVar("cm_version")->GetString(), MAX_OSPATH);
 		cvarMsg->m_ConVars.AddToTail(acvar);
 
 		strncpy(acvar.name, XorStr("~clientmod"), MAX_OSPATH);
@@ -437,8 +437,8 @@ void Hooked_BuildConVarUpdateMessage(NET_SetConVar* cvarMsg, int flags, bool non
 	for (int i = 0; i < cvarMsg->m_ConVars.Size(); i++) {
 		printfdbg("%d %s : %s\n", i, cvarMsg->m_ConVars[i].name, cvarMsg->m_ConVars[i].value);
 	}
-	 
-} 
+
+}
 
 
 static bool IsSafeFileToDownload(const char* pFilename)
@@ -473,7 +473,7 @@ static bool IsSafeFileToDownload(const char* pFilename)
 	// Word.
 	return true;
 }
- 
+
 
 class CGameEventCallback
 {
@@ -512,36 +512,36 @@ CGameEventDescriptor* GetEventDescriptor(CGameEventDescriptor* descriptors, int 
 	}
 	return NULL;
 }
- 
+
 bool ProcessControlMessage(INetChannel* chan, int cmd, bf_read& buf)
-{    
+{
 	char string[1024];
 
 	if (cmd == net_NOP)
 	{
 		return true;
 	}
-	 
-	INetChannelHandler* m_MessageHandler = CallVFunction<INetChannelHandler*(__thiscall*)(void*)>(chan, 45)(chan); //INetChannel::GetMsgHandler  
-	
+
+	INetChannelHandler* m_MessageHandler = CallVFunction<INetChannelHandler * (__thiscall*)(void*)>(chan, 45)(chan); //INetChannel::GetMsgHandler  
+
 	printfdbg("ProcControlMessage %d Channel %x Handler %x\n", cmd, chan, m_MessageHandler);
 
 	if (cmd == net_Disconnect)
-	{ 
-		buf.ReadString(string, sizeof(string)); 
-		printfdbg("Connection closing: %s\n",string); 
-		 
+	{
+		buf.ReadString(string, sizeof(string));
+		printfdbg("Connection closing: %s\n", string);
+
 		if (!srcds)
 			CallVFunction<void(__thiscall*)(void*, char*)>(chan, 0x20)(chan, string); //INetChannel::Disconnect 
- 
+
 		return false;
 	}
-	
-	if (cmd == net_File) 
-	{   
-		unsigned int transferID = buf.ReadUBitLong(32); 
-		buf.ReadString(string, sizeof(string)); 
-		      
+
+	if (cmd == net_File)
+	{
+		unsigned int transferID = buf.ReadUBitLong(32);
+		buf.ReadString(string, sizeof(string));
+
 		if (buf.ReadOneBit() != 0 && IsSafeFileToDownload(string))
 		{
 			printfdbg("FileRequested %s\n", string);
@@ -551,11 +551,11 @@ bool ProcessControlMessage(INetChannel* chan, int cmd, bf_read& buf)
 		{
 			printfdbg("FileDenied %s\n", string);
 			m_MessageHandler->FileDenied(string, transferID);
-		} 
-		 
+		}
+
 		return true;
 	}
-	
+
 	printfdbg("Netchannel: received bad control cmd %i from %s.\n", cmd, chan->GetAddress());
 	return false;
 }
@@ -591,12 +591,12 @@ INetMessage* FindMessage(INetChannel* ecx, int type)
 
 
 const char* GetEventName(int eventid)
-{ 
+{
 	void* EDI;
 	int count;
 	CGameEventDescriptor* descriptors;
 	__asm
-	{ 
+	{
 		mov eax, g_GameEventManager
 		mov edx, [eax + 0x10]
 		mov count, edx
@@ -611,13 +611,13 @@ const char* GetEventName(int eventid)
 
 	return "";
 }
- 
+
 DWORD eip_;
 __declspec(naked) void getEIP()
 {
 	__asm pushad
 	__asm mov eax, [esp + 0x20]
-	__asm mov[eip_], eax
+		__asm mov[eip_], eax
 	printfdbg("EIP %x\n", eip_);
 	__asm popad
 	__asm ret
@@ -632,21 +632,21 @@ void ReturnCvarValue(INetChannel* pThis, EQueryCvarValueStatus status, QueryCvar
 	returnMsg.m_iCookie = cookie;
 	returnMsg.m_szCvarName = cvarname;
 	returnMsg.m_szCvarValue = value_to_pass;
-	returnMsg.m_eStatusCode = status; 
-	((void(__thiscall*)(void*, CLC_RespondCvarValue*))NetChannel_SendNetMsg)(pThis,&returnMsg);
+	returnMsg.m_eStatusCode = status;
+	((void(__thiscall*)(void*, CLC_RespondCvarValue*))NetChannel_SendNetMsg)(pThis, &returnMsg);
 	//CallVFunction<void(__thiscall*)(void*, CLC_RespondCvarValue*)>(pThis, 0x24)(pThis, &returnMsg); //m_NetChannel->SendNetMsg
 }
- 
+
 #define RespondCvarValue(name, value, status) \
 if (!strcmp((char*)((DWORD)netmsg + 24), name)) \
 {\
 ReturnCvarValue(pThis, status, msgmsg->m_iCookie, name, value);\
 continue;\
 }\
- 
+
 typedef bool(__thiscall* FunctionFn)(INetChannel*, bf_read&);
 bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& buf)
-{  
+{
 	static FunctionFn Function = (FunctionFn)dwProcessMessages;
 
 	while (true)
@@ -664,7 +664,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 		}
 
 		unsigned char cmd = buf.ReadUBitLong(NETMSG_TYPE_BITS);
-		 
+
 		if (cmd <= net_File)
 		{
 			if (!ProcessControlMessage(pThis, cmd, buf))
@@ -673,70 +673,70 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 			}
 
 			continue;
-		} 
+		}
 
 		INetMessage* netmsg = FindMessage(pThis, cmd);
 
 		if (netmsg)
-		{ 
+		{
 			bf_read backup = buf;
 
 			if (cmd == svc_GameEvent)
-			{ 
-				int length = buf.ReadUBitLong(11); 
-				int eventid = buf.ReadUBitLong(MAX_EVENT_BITS); 
+			{
+				int length = buf.ReadUBitLong(11);
+				int eventid = buf.ReadUBitLong(MAX_EVENT_BITS);
 				const char* name = GetEventName(eventid);
-				  
-				printfdbg("svc_GameEvent: %s (%d)\n", name, eventid); 
 
-				if (name && !strcmp(name, "player_disconnect"))  
-				{      
+				printfdbg("svc_GameEvent: %s (%d)\n", name, eventid);
+
+				if (name && !strcmp(name, "player_disconnect"))
+				{
 					short userid = (short)buf.ReadUBitLong(16);// buf.ReadShort();
 					char reason[1024];
-					buf.ReadString(reason, sizeof(reason)); 
+					buf.ReadString(reason, sizeof(reason));
 					char name[1024];
-					buf.ReadString(name, sizeof(name)); 
+					buf.ReadString(name, sizeof(name));
 					char networkid[1024];
 					buf.ReadString(networkid, sizeof(networkid));
 					printfdbg("player_disconnect %d name %s reason %s networkid %s\n", userid, name, reason, networkid);
-					  
+
 					//if (userid < 1)
-						continue;
+					continue;
 				}
-				 
+
 				if (name && !strcmp(name, "player_info"))
 				{
-					char databuf[1024]; 
+					char databuf[1024];
 					buf.ReadString(databuf, sizeof(databuf));
 					printfdbg("player_info buffer %s\n", databuf);
-					buf.ReadString(databuf, sizeof(databuf));  
-					continue; 
-				} 
+					buf.ReadString(databuf, sizeof(databuf));
+					continue;
+				}
 
 				buf = backup;
 			}
-			 
+
 			if (cmd == svc_UserMessage)
-			{ 
+			{
 				auto msgType = buf.ReadByte();
 				auto dataLengthInBits = buf.ReadUBitLong(11);
-				assert(math::BitsToBytes(data->dataLengthInBits) <= MAX_USER_MSG_DATA); 
+				assert(math::BitsToBytes(data->dataLengthInBits) <= MAX_USER_MSG_DATA);
 				char databuf[1024];
-				buf.ReadBits(databuf, dataLengthInBits);  
-				   
+				buf.ReadBits(databuf, dataLengthInBits);
+
 				if (msgType < 0 || msgType >= (*(DWORD**)CUserMessages)[5])
 				{
 					printfdbg("UserMsg Rejected: type %d dataLengthInBits %d\n", msgType, dataLengthInBits);
 					continue;
 				}
-				
+
 				buf = backup;
 			}
- 
+
 			if (!srcds) {
-				 
+
 				if (cmd == svc_ServerInfo)
-				{  
+				{
 					printfdbg("svc_ServerInfo:\n");
 					printfdbg("m_nProtocol %d\n", (uint16)buf.ReadUBitLong(16));
 					printfdbg("m_nServerCount %d\n", (uint16)buf.ReadUBitLong(32));
@@ -753,10 +753,10 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 					char MapName[1024]; buf.ReadString(MapName, sizeof(MapName));
 					char SkyName[1024]; buf.ReadString(SkyName, sizeof(SkyName));
 					char HostName[1024]; buf.ReadString(HostName, sizeof(HostName));
-					printfdbg("m_szGameDirBuffer %s\n", GameDir); 
+					printfdbg("m_szGameDirBuffer %s\n", GameDir);
 					printfdbg("m_szMapNameBuffer %s\n", MapName);
 					printfdbg("m_szSkyNameBuffer %s\n", SkyName);
-					printfdbg("m_szHostNameBuffer %s\n", HostName);  
+					printfdbg("m_szHostNameBuffer %s\n", HostName);
 					buf = backup;
 				}
 
@@ -783,12 +783,12 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 			{
 				printfdbg("Netchannel: failed reading message %s from %s.\n", netmsg->GetName(), pThis->GetAddress());
 				return false;
-			} 
-			  
+			}
+
 			if (cmd != net_Tick && cmd != svc_PacketEntities && cmd != svc_UserMessage && cmd != clc_Move &&
 				cmd != svc_Sounds && cmd != svc_GameEvent && cmd != svc_TempEntities)
 			{
-				printfdbg("Income msg %d from %s: %s", cmd, pThis->GetAddress(), netmsg->ToString()); 
+				printfdbg("Income msg %d from %s: %s", cmd, pThis->GetAddress(), netmsg->ToString());
 				if (!srcds)
 					if (cmd == svc_FixAngle || cmd == svc_SetPause)
 					{
@@ -800,39 +800,38 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 
 			if (cmd == svc_GetCvarValue)
 			{
-				SVC_GetCvarValue* msgmsg = (SVC_GetCvarValue*)netmsg; 
-				 
+				SVC_GetCvarValue* msgmsg = (SVC_GetCvarValue*)netmsg;
+
 				RespondCvarValue("cm_steamid", "", eQueryCvarValueStatus_CvarNotFound);
 				RespondCvarValue("cm_steamid_random", "", eQueryCvarValueStatus_CvarNotFound);
 				RespondCvarValue("cm_version", "", eQueryCvarValueStatus_CvarNotFound);
 				RespondCvarValue("cm_enabled", "", eQueryCvarValueStatus_CvarNotFound);
 				RespondCvarValue("cm_friendsname", "", eQueryCvarValueStatus_CvarNotFound);
-				RespondCvarValue("cm_friendsid", "", eQueryCvarValueStatus_CvarNotFound); 
+				RespondCvarValue("cm_friendsid", "", eQueryCvarValueStatus_CvarNotFound);
 				RespondCvarValue("cm_forcemap", "", eQueryCvarValueStatus_CvarNotFound);
-				RespondCvarValue("cm_forcemap_enabled", "", eQueryCvarValueStatus_CvarNotFound);
-				RespondCvarValue("cm_drawspray", "", eQueryCvarValueStatus_CvarNotFound); 
+				RespondCvarValue("cm_drawspray", "", eQueryCvarValueStatus_CvarNotFound);
 				RespondCvarValue("se_lkblox", "0", eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("se_autobunnyhopping", "0", eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("se_disablebunnyhopping", "0", eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("e_viewmodel_right", "0", eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("e_viewmodel_fov", "0", eQueryCvarValueStatus_ValueIntact);
-				RespondCvarValue("e_viewmodel_up", "0", eQueryCvarValueStatus_ValueIntact); 
+				RespondCvarValue("e_viewmodel_up", "0", eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("net_blockmsg", "none", eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("net_compresspackets_minsize", "128", eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("windows_speaker_config", "4", eQueryCvarValueStatus_ValueIntact);
-				RespondCvarValue("net_compresspackets", "1", eQueryCvarValueStatus_ValueIntact); 
+				RespondCvarValue("net_compresspackets", "1", eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("pyro_vignette", "2", eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("cl_minmodels", "0", eQueryCvarValueStatus_ValueIntact);
-				RespondCvarValue("cl_min_ct", "1", eQueryCvarValueStatus_ValueIntact); 
+				RespondCvarValue("cl_min_ct", "1", eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("cl_min_t", "1", eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("cl_downloadfilter", "all", eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("voice_inputfromfile", "0", eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("voice_loopback", "0", eQueryCvarValueStatus_ValueIntact);
-				RespondCvarValue("sv_cheats", "0", eQueryCvarValueStatus_ValueIntact); 
-			}   
-			   
-			if (srcds) 
-			{  
+				RespondCvarValue("sv_cheats", "0", eQueryCvarValueStatus_ValueIntact);
+			}
+
+			if (srcds)
+			{
 				if (cmd == net_SetConVar)
 				{
 					NET_SetConVar* msgmsg = (NET_SetConVar*)netmsg;
@@ -844,9 +843,9 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				if (cmd == clc_ClientInfo)
 				{
 					CLC_ClientInfo* Cl = (CLC_ClientInfo*)netmsg;
-					printfdbg("clc_ClientInfo m_nFriendsID: %x m_FriendsName: %s\n", Cl->m_nFriendsID, Cl->m_FriendsName); 
+					printfdbg("clc_ClientInfo m_nFriendsID: %x m_FriendsName: %s\n", Cl->m_nFriendsID, Cl->m_FriendsName);
 				}
-				
+
 				if (cmd == clc_ListenEvents)
 				{
 					CLC_ListenEvents* msgmsg = (CLC_ListenEvents*)netmsg;
@@ -859,23 +858,23 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 					for (int i = 0; i < 0x10; i++)
 						printfdbg("%08x ", *(uint*)((int)netmsg + 0x10 + i * 4));
 					printfdbg("\n");
-				}  
-			} 
-			 
+				}
+			}
+
 			if (!netmsg->Process())
 			{
 				printfdbg("Netchannel: failed processing message %s.\n", netmsg->GetName());
 				return false;
 			}
 		}
-		else  
+		else
 		{
 			printfdbg("Netchannel: unknown net message (%i) from %s.\n", cmd, pThis->GetAddress());
 			return false;
 		}
 	}
 
-	return true;  
+	return true;
 }
 
 
@@ -887,7 +886,7 @@ enum
 	SERVERSIDE_OLD,		// legacy support for old server event listeners
 	CLIENTSIDE_OLD,		// legecy support for old client event listeners
 };
- 
+
 
 //Ultr@Hook fix 
 void __fastcall hkWriteListenEventList(CGameEventManager* _this, void* edx, int msg) //SVC_GameEventList*
@@ -902,7 +901,7 @@ void __fastcall hkWriteListenEventList(CGameEventManager* _this, void* edx, int 
 
 	for (int j = 0; j < EventCount; j++)
 	{
-		CGameEventDescriptor* _descriptor = (CGameEventDescriptor*)(j * 0x40 + EventNames); 
+		CGameEventDescriptor* _descriptor = (CGameEventDescriptor*)(j * 0x40 + EventNames);
 		//printfdbg("Event %d: %s %d\n", iterator, _descriptor->name, _descriptor->listeners.Count()); 
 		bool bHasClientListener = false;
 		for (int i = 0; i < _descriptor->listeners.Count(); i++) { // *(int*)(descriptor + 0x38)
@@ -919,30 +918,30 @@ void __fastcall hkWriteListenEventList(CGameEventManager* _this, void* edx, int 
 				uint uVar5 = _descriptor->eventid; //*(uint*)(descriptor + 0x20);  
 				//msg->add_event_mask( EventArray.GetDWord( i ) );
 				*(uint*)(msg + 0x10 + (uVar5 >> 5) * 4) =
-					1 << ((byte)uVar5 & 0x1f) | *(uint*)(msg + 0x10 + (uVar5 >> 5) * 4); 
+					1 << ((byte)uVar5 & 0x1f) | *(uint*)(msg + 0x10 + (uVar5 >> 5) * 4);
 				printfdbg("Listening Event %d: %s %x\n", uVar5, _descriptor, *(uint*)(msg + 0x10 + (uVar5 >> 5) * 4));
 				totalListened++;
 			}
-		} 
+		}
 	}
-	 
-	printfdbg("WriteListenEventList: Total %d events listened. Bitset: ", totalListened); 
+
+	printfdbg("WriteListenEventList: Total %d events listened. Bitset: ", totalListened);
 	for (int i = 0; i < 0x10; i++)
 		printfdbg("%08x ", *(uint*)(msg + 0x10 + i * 4)); //bits 0cc8a1c5 00000e0e 00003e60 
 	printfdbg("\n");
-	 
+
 	return;
 }
 
- 
-DWORD dwSendNetMsg; 
+
+DWORD dwSendNetMsg;
 typedef bool(__thiscall* pSendNetMsg)(INetChannel* pNetChan, INetMessage& msg, bool bVoice);
-bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg,  bool bVoice)
-{ 
+bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg, bool bVoice)
+{
 	int cmd = msg.GetType();
 	if (cmd != net_Tick && cmd != clc_Move && cmd != svc_UserMessage && cmd != svc_GameEvent && cmd != clc_BaselineAck)
 		printfdbg("Outcome msg %d: %s\n", cmd, msg.ToString()); //msg.GetName()
-	       
+
 	if (cmd == svc_UserMessage)
 	{
 		byte usermsgID = *(DWORD*)((DWORD)&msg + 0x10);
@@ -950,16 +949,16 @@ bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg,  b
 	}
 
 	if (cmd == svc_GameEvent)
-	{   
-		byte eventID = *(DWORD*)((DWORD)&msg + 0x44); 
-		printfdbg("svc_GameEvent: %s (%d).\n", GetEventName(eventID), eventID);   
-	}    
+	{
+		byte eventID = *(DWORD*)((DWORD)&msg + 0x44);
+		printfdbg("svc_GameEvent: %s (%d).\n", GetEventName(eventID), eventID);
+	}
 
 	if (cmd == clc_ClientInfo)
 	{
 		CLC_ClientInfo* Cl = (CLC_ClientInfo*)&msg;
-		Cl->m_nFriendsID = uint32(atof(g_pCVar->FindVar("cm_friendsid")->GetString()));  
-		strncpy(Cl->m_FriendsName, g_pCVar->FindVar("cm_friendsname")->GetString(), 32); 
+		Cl->m_nFriendsID = uint32(atof(g_pCVar->FindVar("cm_friendsid")->GetString()));
+		strncpy(Cl->m_FriendsName, g_pCVar->FindVar("cm_friendsname")->GetString(), 32);
 		/*
 		Cl->m_nCustomFiles[0] = 0;
 		Cl->m_nCustomFiles[1] = 0;
@@ -967,21 +966,21 @@ bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg,  b
 		Cl->m_nCustomFiles[3] = 0;
 		*/
 	}
-	    
-	static pSendNetMsg SendNetMsg = (pSendNetMsg)dwSendNetMsg; 
+
+	static pSendNetMsg SendNetMsg = (pSendNetMsg)dwSendNetMsg;
 	return SendNetMsg(this_, msg, bVoice);
 }
 
- 
+
 DWORD dwDispatchUserMessage;
 typedef bool(__thiscall* pDispatchUserMessage)(void* this_, int msg_type, bf_read& msg_data);
 bool __fastcall hkDispatchUserMessage(DWORD* this_, void* edx, int msg_type, bf_read& msg_data)
-{  
+{
 	if (msg_type < 0 || msg_type >= this_[5])
-		return false; 
+		return false;
 
 	if (msg_type == 11 || msg_type == 12) //Shake Fade 
-	{ 
+	{
 		printfdbg("svc_UserMessage: %s (%d) Rejected\n", ((char* (__thiscall*)(void*, int))dwGetUserMessageName)(this_, msg_type), msg_type);
 		return true;
 	}
@@ -992,8 +991,8 @@ bool __fastcall hkDispatchUserMessage(DWORD* this_, void* edx, int msg_type, bf_
 			char name[1024];
 			msg_data.ReadString(name, sizeof(name));
 			printfdbg("svc_UserMessage: %s (%d): %s\n", ((char* (__thiscall*)(void*, int))dwGetUserMessageName)(this_, msg_type), msg_type, name);
-			if (!strcmp(name, XorStr("info"))) 
-				return true;  
+			if (!strcmp(name, XorStr("info")))
+				return true;
 			msg_data = backup;
 		}
 		else
@@ -1002,14 +1001,14 @@ bool __fastcall hkDispatchUserMessage(DWORD* this_, void* edx, int msg_type, bf_
 
 	static pDispatchUserMessage DispatchUserMessage = (pDispatchUserMessage)dwDispatchUserMessage;
 	return DispatchUserMessage(this_, msg_type, msg_data);
-} 
+}
 
 #include <shlwapi.h>
 #pragma comment(lib, "Shlwapi.lib")
 DWORD dwDownloadManager_Queue;
 typedef void(__thiscall* pDownloadManager_Queue)(DWORD* this_, char* Source, char* Str);
 void __fastcall hkDownloadManager_Queue(DWORD* this_, void* unk, char* baseURL, char* gamePath)
-{ 
+{
 	if (!strcmp(g_pCVar->FindVar("cl_downloadfilter")->GetString(), "mapsonly") && strcmp(PathFindExtensionA(gamePath), ".bsp"))
 		return;
 	printfdbg("Downloading %s from %s\n", baseURL, gamePath);
@@ -1022,10 +1021,10 @@ typedef int(__cdecl* pFindClientClass)(char* event_name);
 int __cdecl hkFindClientClass(char* event_name)
 {
 	__asm mov ClassID, edx
-	printfdbg("svc_TempEntities: %s (%d)\n", event_name, ClassID >> 4); 
+	printfdbg("svc_TempEntities: %s (%d)\n", event_name, ClassID >> 4);
 	if (!(g_pCVar->FindVar("cm_drawspray")->GetInt()) && !strcmp(event_name, "CTEPlayerDecal")) return false;
 	static pFindClientClass FindClientClass = (pFindClientClass)dwFindClientClass;
-	return FindClientClass(event_name); 
+	return FindClientClass(event_name);
 }
 
 DWORD dwSVC_ServerInfo_ReadFromBuffer = 0;
@@ -1034,10 +1033,10 @@ bool __fastcall hkSVC_ServerInfo_ReadFromBuffer(int this_, void* unk, int buf)
 {
 	static pSVC_ServerInfo_ReadFromBuffer SVC_ServerInfo_ReadFromBuffer = (pSVC_ServerInfo_ReadFromBuffer)dwSVC_ServerInfo_ReadFromBuffer;
 	auto ret = SVC_ServerInfo_ReadFromBuffer(this_, buf);
-
-	if (g_pCVar->FindVar("cm_forcemap_enabled")->GetInt())
+	 
+	if (*(byte*)g_pCVar->FindVar("cm_forcemap")->GetString() != 0)
 	{
-		int v11 = this_ + 328; 
+		int v11 = this_ + 328;
 		strncpy((char*)v11, g_pCVar->FindVar("cm_forcemap")->GetString(), 128);
 		//*(DWORD*)(this_ + 28) = 4105947211; //m_nMapCRC
 	}
@@ -1045,24 +1044,24 @@ bool __fastcall hkSVC_ServerInfo_ReadFromBuffer(int this_, void* unk, int buf)
 }
 
 DWORD dwCMapLoader_Init = 0; char* maptoload;
-typedef int (__cdecl* pCMapLoader_Init)(int a1, char* Source);
+typedef int(__cdecl* pCMapLoader_Init)(int a1, char* Source);
 int __cdecl hkCMapLoader_Init(int a1, char* Source)
-{   
+{
 	__asm mov eax, esp
-	__asm mov eax, [eax+0xC]
-	__asm add eax, 4
-	__asm mov maptoload, eax 
-	printfdbg("CMapLoaderInit %s\n",Source); 
+	__asm mov eax, [eax + 0xC]
+		__asm add eax, 4
+	__asm mov maptoload, eax
+	printfdbg("CMapLoaderInit %s\n", Source);
 
-	if ((int)maptoload != 4) { 
-		if (g_pCVar->FindVar("cm_forcemap_enabled")->GetInt())
+	if ((int)maptoload != 4) {
+		if (*(byte*)g_pCVar->FindVar("cm_forcemap")->GetString() != 0)
 			sprintf(maptoload, "maps/%s.bsp", g_pCVar->FindVar("cm_forcemap")->GetString());
 		else
 			strncpy(maptoload, CallVFunction<char* (__thiscall*)(void*)>(g_pEngineClient, 52)(g_pEngineClient), 64); //GetLevelName
-	} 
+	}
 
 	static pCMapLoader_Init CMapLoader_Init = (pCMapLoader_Init)dwCMapLoader_Init;
-	auto ret = CMapLoader_Init(a1, Source);  
+	auto ret = CMapLoader_Init(a1, Source);
 	return ret;
 }
 
@@ -1077,11 +1076,11 @@ DWORD WINAPI HackThread(HMODULE hModule)
 	string path = string(szExeFileName);
 	string exe = path.substr(path.find_last_of("\\") + 1, path.size());
 	srcds = !strcmp(exe.c_str(), XorStr("srcds.exe"));
-	printfdbg("srcds.exe? %d\n", srcds); 
+	printfdbg("srcds.exe? %d\n", srcds);
 
 	char client_dll[] = "client.dll";
 	if (srcds) strcpy(client_dll, "server.dll");
-	
+
 
 #ifdef TIMEDACCESS
 	printfdbg("compile time %d\n", compiletime);
@@ -1098,10 +1097,10 @@ DWORD WINAPI HackThread(HMODULE hModule)
 	SigScan scan;
 
 	g_GameEventManager = (CGameEventManager*)GetInterface("engine.dll", "GAMEEVENTSMANAGER002");
-	 
+
 	g_pEngineClient = (IVEngineClient*)GetInterface("engine.dll", "VEngineClient012");
 
-	if (!srcds) { 
+	if (!srcds) {
 		DWORD dwEngine = (DWORD)GetModuleHandleA("engine.dll");
 
 		IGameConsole* g_pGameConsole = (IGameConsole*)GetInterface(XorStr("gameui.dll"), XorStr("GameConsole003"));
@@ -1116,29 +1115,28 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		g_pGameConsole->ColorPrintf(clr2, "atryrkakiv\n");
 		g_pGameConsole->ColorPrintf(clr1, "Compile time: ");
 		g_pGameConsole->ColorPrintf(clr2, ctime(&CompileTime));
-		 
-		g_pCVar = ((ICvar*(*)(void))GetProcAddress(GetModuleHandleA("vstdlib.dll"), "GetCVarIF"))();
+
+		g_pCVar = ((ICvar * (*)(void))GetProcAddress(GetModuleHandleA("vstdlib.dll"), "GetCVarIF"))();
 		printfdbg("g_pCVar %x\n", g_pCVar);
-		
+
 		CallVFunction<IVEngineClient* (__thiscall*)(void*, char*)>(g_pEngineClient, 97)(g_pEngineClient, //g_pEngineClient->ExecuteClientCmd
-			"setinfo cm_steamid 1337; setinfo cm_steamid_random 1; setinfo cm_enabled 1; setinfo cm_version \"3.0.0.9130\"; setinfo cm_friendsid 3735928559; setinfo cm_drawspray 0; setinfo cm_friendsname \"Hello World\"; setinfo cm_forcemap_enabled 0; setinfo cm_forcemap de_dust2"); 
-		 
+			"setinfo cm_steamid 1337; setinfo cm_steamid_random 1; setinfo cm_enabled 1; setinfo cm_version \"3.0.0.9130\"; setinfo cm_friendsid 3735928559; setinfo cm_drawspray 0; setinfo cm_friendsname \"Hello World\"; setinfo cm_forcemap de_dust2");
+
 		//FCVAR_PROTECTED 
 		g_pCVar->FindVar("cm_steamid")->m_nFlags = 537001984;
 		g_pCVar->FindVar("cm_steamid_random")->m_nFlags = 537001984;
 		g_pCVar->FindVar("cm_version")->m_nFlags = 537001984;
-		g_pCVar->FindVar("cm_enabled")->m_nFlags = 537001984; 
-		g_pCVar->FindVar("cm_friendsname")->m_nFlags = 537001984;  
+		g_pCVar->FindVar("cm_enabled")->m_nFlags = 537001984;
+		g_pCVar->FindVar("cm_friendsname")->m_nFlags = 537001984;
 		auto CvFriendsid = g_pCVar->FindVar("cm_friendsid");
 		CvFriendsid->m_nFlags = 537001984;
 		CvFriendsid->m_bHasMin = true;
 		CvFriendsid->m_fMinVal = 0;
 		CvFriendsid->m_bHasMax = true;
-		CvFriendsid->m_fMaxVal = 4294967295.000000; 
+		CvFriendsid->m_fMaxVal = 4294967295.000000;
 		g_pCVar->FindVar("cm_drawspray")->m_nFlags = 537001984;
-		g_pCVar->FindVar("sv_cheats")->m_nFlags = 0; 
-		g_pCVar->FindVar("cl_downloadfilter")->m_pszHelpString = "Determines which files can be downloaded from the server(all, none, nosounds, mapsonly)"; 
-		g_pCVar->FindVar("cm_forcemap_enabled")->m_nFlags = 537001984;
+		g_pCVar->FindVar("sv_cheats")->m_nFlags = 0;
+		g_pCVar->FindVar("cl_downloadfilter")->m_pszHelpString = "Determines which files can be downloaded from the server(all, none, nosounds, mapsonly)";
 		g_pCVar->FindVar("cm_forcemap")->m_nFlags = 537001984;
 
 		//g_pEngineClient->ExecuteClientCmd("setinfo se_lkblox 0; setinfo se_autobunnyhopping 0; setinfo se_disablebunnyhopping 0; setinfo e_viewmodel_right 0; setinfo e_viewmodel_fov 0; setinfo e_viewmodel_up 0;");
@@ -1164,8 +1162,8 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		}
 		*/
 
-		dwDownloadManager_Queue = scan.FindPattern(XorStr("engine.dll"), 
-			XorStr("\x6a\xae\x68\xae\xae\xae\xae\x64\xa1\xae\xae\xae\xae\x50\x64\x89\x25\xae\xae\xae\xae\x83\xec\xae\x53\x8b\x5c\x24\xae\x85\xdb"), 
+		dwDownloadManager_Queue = scan.FindPattern(XorStr("engine.dll"),
+			XorStr("\x6a\xae\x68\xae\xae\xae\xae\x64\xa1\xae\xae\xae\xae\x50\x64\x89\x25\xae\xae\xae\xae\x83\xec\xae\x53\x8b\x5c\x24\xae\x85\xdb"),
 			XorStr("x?x????xx????xxxx????xx?xxxx?xx"));
 		printfdbg("dwDownloadManager_Queue %x\n", dwDownloadManager_Queue);
 
@@ -1177,8 +1175,8 @@ DWORD WINAPI HackThread(HMODULE hModule)
 
 		dwFindClientClass = scan.FindPattern(XorStr("engine.dll"),
 			XorStr("\x56\x57\xe8\xae\xae\xae\xae\x8b\xf0\x85\xf6\x74"),
-			XorStr("xxx????xxxxx")); 
-		printfdbg("dwFindClientClass %x\n", dwFindClientClass); 
+			XorStr("xxx????xxxxx"));
+		printfdbg("dwFindClientClass %x\n", dwFindClientClass);
 
 		//MapPatch 
 		DWORD oldProtect;
@@ -1200,7 +1198,7 @@ DWORD WINAPI HackThread(HMODULE hModule)
 	}
 
 	dwProcessMessages = scan.FindPattern(XorStr("engine.dll"), XorStr("\x83\xEC\x2C\x53\x55\x89\x4C\x24\x10"), XorStr("xxxxxxxxx"));
-	  
+
 	printfdbg("dwPrepareSteamConnectResponse %x\n", dwPrepareSteamConnectResponse);
 
 	DWORD dwWriteListenEventList;
@@ -1213,10 +1211,10 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		printfdbg("NC %x\n", NC);
 
 		dwWriteListenEventList = scan.FindPattern(XorStr("engine.dll"), XorStr("\x51\x8b\x44\x24\x08\x83\xc0\x10"), XorStr("xxxxxxxx")); //dwEngine + 0xADA80; 
-		printfdbg("dwWriteListenEventList %x\n", dwWriteListenEventList); 
+		printfdbg("dwWriteListenEventList %x\n", dwWriteListenEventList);
 	}
-	 
-	CUserMessages = reinterpret_cast<LPVOID>(*(PVOID*)(scan.FindPattern(XorStr(client_dll),XorStr("\x8b\x0d\xae\xae\xae\xae\x6a\xae\x68\xae\xae\xae\xae\xe8"), XorStr("xx????x?x????x")) + 2));
+
+	CUserMessages = reinterpret_cast<LPVOID>(*(PVOID*)(scan.FindPattern(XorStr(client_dll), XorStr("\x8b\x0d\xae\xae\xae\xae\x6a\xae\x68\xae\xae\xae\xae\xe8"), XorStr("xx????x?x????x")) + 2));
 	printfdbg("CUserMessages_ %x\n", CUserMessages);
 	dwDispatchUserMessage = scan.FindPattern(XorStr(client_dll), XorStr("\x8b\x44\x24\xae\x83\xec\xae\x85\xc0\x0f\x8c"), XorStr("xxx?xx?xxxx"));
 	printfdbg("dwDispatchUserMessage %x\n", dwDispatchUserMessage);
@@ -1225,7 +1223,7 @@ DWORD WINAPI HackThread(HMODULE hModule)
 
 	dwSendNetMsg = scan.FindPattern(XorStr("engine.dll"), XorStr("\xcc\x56\x8b\xf1\x8d\x4e\x74"), XorStr("xxxxxxx")) + 1; //dwEngine + 0xff950;
 	printfdbg("dwSendNetMsg %x\n", dwSendNetMsg);
-	  
+
 	dwSVC_ServerInfo_ReadFromBuffer = scan.FindPattern(XorStr("engine.dll"), XorStr("\x83\xec\xae\x53\x55\x56\x8b\x74\x24\xae\x57\x8b\xf9\x8d\x87"),
 		XorStr("xx?xxxxxx?xxxxx"));
 	printfdbg("dwSVC_ServerInfo_ReadFromBuffer %x\n", dwSVC_ServerInfo_ReadFromBuffer);
@@ -1236,22 +1234,22 @@ DWORD WINAPI HackThread(HMODULE hModule)
 	DetourTransactionBegin();
 	DetourUpdateThread(GetCurrentThread());
 
-	if (!srcds) { 
+	if (!srcds) {
 		DetourAttach(&(LPVOID&)dwPrepareSteamConnectResponse, &Hooked_PrepareSteamConnectResponse);
 		DetourAttach(&(LPVOID&)dwBuildConVarUpdateMessage, &Hooked_BuildConVarUpdateMessage);
 		DetourAttach(&(LPVOID&)(dwWriteListenEventList), (PBYTE)hkWriteListenEventList);
 		DetourAttach(&(LPVOID&)(dwDispatchUserMessage), (PBYTE)hkDispatchUserMessage);
 		DetourAttach(&(LPVOID&)(dwDownloadManager_Queue), (PBYTE)hkDownloadManager_Queue);
-		DetourAttach(&(LPVOID&)(dwFindClientClass), (PBYTE)hkFindClientClass);  
+		DetourAttach(&(LPVOID&)(dwFindClientClass), (PBYTE)hkFindClientClass);
 		DetourAttach(&(LPVOID&)(dwSVC_ServerInfo_ReadFromBuffer), (PBYTE)hkSVC_ServerInfo_ReadFromBuffer);
-		DetourAttach(&(LPVOID&)(dwCMapLoader_Init), (PBYTE)hkCMapLoader_Init); 
+		DetourAttach(&(LPVOID&)(dwCMapLoader_Init), (PBYTE)hkCMapLoader_Init);
 	}
 
 	DetourAttach(&(LPVOID&)dwProcessMessages, &Hooked_ProcessMessages);
 	DetourAttach(&(LPVOID&)(dwSendNetMsg), (PBYTE)hkSendNetMsg);
-	 
+
 	DetourTransactionCommit();
-	 
+
 	//ConCommandBaseMgr::OneTimeInit(&g_ConVarAccessor);  
 
 #ifdef DISCMSG
@@ -1268,15 +1266,15 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		memcpy((PVOID)(dwDisconnectMessage), &dscmsg, 4); // CBaseClientState::Disconnect
 	}
 #endif
-	 
+
 	while (true)
-	{ 
+	{
 		if (!srcds && GetAsyncKeyState(VK_DELETE))
 			break;
-		
+
 		if (srcds && GetAsyncKeyState(VK_END))
 			break;
-		 
+
 #ifdef TIMEDACCESS
 		if (!CheckTime())
 		{
@@ -1304,13 +1302,13 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		DetourDetach(&(LPVOID&)dwWriteListenEventList, reinterpret_cast<BYTE*>(hkWriteListenEventList));
 		DetourDetach(&(LPVOID&)(dwDispatchUserMessage), reinterpret_cast<BYTE*>(hkDispatchUserMessage));
 		DetourDetach(&(LPVOID&)(dwDownloadManager_Queue), reinterpret_cast<BYTE*>(hkDownloadManager_Queue));
-		DetourDetach(&(LPVOID&)(dwFindClientClass), reinterpret_cast<BYTE*>(hkFindClientClass));  
+		DetourDetach(&(LPVOID&)(dwFindClientClass), reinterpret_cast<BYTE*>(hkFindClientClass));
 		DetourDetach(&(LPVOID&)(dwSVC_ServerInfo_ReadFromBuffer), reinterpret_cast<BYTE*>(hkSVC_ServerInfo_ReadFromBuffer));
-		DetourDetach(&(LPVOID&)(dwCMapLoader_Init), reinterpret_cast<BYTE*>(hkCMapLoader_Init)); 
+		DetourDetach(&(LPVOID&)(dwCMapLoader_Init), reinterpret_cast<BYTE*>(hkCMapLoader_Init));
 	}
 	DetourDetach(&(LPVOID&)dwProcessMessages, reinterpret_cast<BYTE*>(Hooked_ProcessMessages));
 	DetourDetach(&(LPVOID&)(dwSendNetMsg), reinterpret_cast<BYTE*>(hkSendNetMsg));
-	 
+
 	DetourTransactionCommit();
 
 	if (!srcds) {
@@ -1320,29 +1318,29 @@ DWORD WINAPI HackThread(HMODULE hModule)
 #endif
 	}
 	FreeLibraryAndExitThread(hModule, 0);
-	
-	return 0; 
+
+	return 0;
 }
 
 
-BOOL APIENTRY DllMain( HMODULE hModule, 
-                       DWORD  ul_reason_for_call,
-                       LPVOID lpReserved
-                     )
+BOOL APIENTRY DllMain(HMODULE hModule,
+	DWORD  ul_reason_for_call,
+	LPVOID lpReserved
+)
 {
 	switch (ul_reason_for_call)
 	{
 	case DLL_PROCESS_ATTACH:
-	{ 
+	{
 		HANDLE hdl = CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)HackThread, hModule, 0, nullptr);
 		if (hdl) CloseHandle(hdl);
 		break;
 	}
-    case DLL_THREAD_ATTACH:
-    case DLL_THREAD_DETACH:
-    case DLL_PROCESS_DETACH:
-        break;
-    } 
-    return TRUE;
+	case DLL_THREAD_ATTACH:
+	case DLL_THREAD_DETACH:
+	case DLL_PROCESS_DETACH:
+		break;
+	}
+	return TRUE;
 }
 
