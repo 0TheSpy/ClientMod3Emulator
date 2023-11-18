@@ -219,6 +219,7 @@ bool __fastcall Hooked_PrepareSteamConnectResponse(DWORD* ecx, void* edx, int ke
 
 #define svc_FixAngle 19
 #define svc_SetPause 11
+#define svc_ServerInfo 8
 
 class CNetMessage : public INetMessage
 {
@@ -731,6 +732,32 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 			}
  
 			if (!srcds) {
+
+				if (cmd == svc_ServerInfo)
+				{
+					printfdbg("svc_ServerInfo:\n");
+					printfdbg("m_nProtocol %d\n", (uint16)buf.ReadUBitLong(16));
+					printfdbg("m_nServerCount %d\n", (uint16)buf.ReadUBitLong(32));
+					printfdbg("m_bIsHLTV %d\n", (byte)buf.ReadOneBit() != 0);
+					printfdbg("m_bIsDedicated %d\n", (byte)buf.ReadOneBit() != 0);
+					printfdbg("m_nClientCRC %x\n", (long)buf.ReadLong());
+					printfdbg("m_nMaxClasses %d\n", (WORD)buf.ReadWord());
+					printfdbg("m_nMapCRC %x\n", (long)buf.ReadLong());
+					printfdbg("m_nPlayerSlot %d\n", (byte)buf.ReadByte());
+					printfdbg("m_nMaxClients %d\n", (byte)buf.ReadByte());
+					printfdbg("m_fTickInterval %f\n", (float32)buf.ReadFloat());
+					printfdbg("m_cOS %c\n", (byte)buf.ReadChar());
+					char GameDir[1024]; buf.ReadString(GameDir, sizeof(GameDir));
+					char MapName[1024]; buf.ReadString(MapName, sizeof(MapName));
+					char SkyName[1024]; buf.ReadString(SkyName, sizeof(SkyName));
+					char HostName[1024]; buf.ReadString(HostName, sizeof(HostName));
+					printfdbg("m_szGameDirBuffer %s\n", GameDir);
+					printfdbg("m_szMapNameBuffer %s\n", MapName);
+					printfdbg("m_szSkyNameBuffer %s\n", SkyName);
+					printfdbg("m_szHostNameBuffer %s\n", HostName);
+					buf = backup;
+				}
+				
 				if (cmd == svc_Menu)
 				{
 					short Type = (short)buf.ReadUBitLong(16);
