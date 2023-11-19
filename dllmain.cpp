@@ -995,20 +995,23 @@ bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg, bo
 	if (cmd != net_Tick && cmd != clc_Move && cmd != svc_UserMessage && cmd != svc_GameEvent && cmd != clc_BaselineAck)
 		printfdbg("Outcome msg %d: %s\n", cmd, msg.ToString()); //msg.GetName()
 
-	if (cmd == net_SignonState)
+	if (!srcds) 
 	{
-		byte m_nSignonState = *(DWORD*)((DWORD)&msg + 0x10);
-	  
-		if (m_nSignonState == g_pCVar->FindVar("cm_fakeconnect")->GetInt() + 1) //2-5
+		if (cmd == net_SignonState)
 		{
-			auto clientport = g_pCVar->FindVar("clientport");
-			clientport->SetValue(clientport->GetInt() + 1);
-			printfdbg("Set client port to %d\n", clientport->GetInt());
-			*(BYTE*)(dwDisconnectMessage - 5) = 0xEB;
-			CallVFunction<IVEngineClient* (__thiscall*)(void*, char*)>(g_pEngineClient, 97)(g_pEngineClient,
-				"disconnect; net_start");
-			*(BYTE*)(dwDisconnectMessage - 5) = 0x74;
-			return false;
+			byte m_nSignonState = *(DWORD*)((DWORD)&msg + 0x10);
+
+			if (m_nSignonState == g_pCVar->FindVar("cm_fakeconnect")->GetInt() + 1) //2-5
+			{
+				auto clientport = g_pCVar->FindVar("clientport");
+				clientport->SetValue(clientport->GetInt() + 1);
+				printfdbg("Set client port to %d\n", clientport->GetInt());
+				*(BYTE*)(dwDisconnectMessage - 5) = 0xEB;
+				CallVFunction<IVEngineClient* (__thiscall*)(void*, char*)>(g_pEngineClient, 97)(g_pEngineClient,
+					"disconnect; net_start");
+				*(BYTE*)(dwDisconnectMessage - 5) = 0x74;
+				return false;
+			}
 		}
 	}
 	 
