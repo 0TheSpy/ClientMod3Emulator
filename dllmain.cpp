@@ -51,6 +51,7 @@ using namespace std;
 #define printfdbg(...)
 #endif
 
+HMODULE hMod = 0;
 ICvar* g_pCVar = nullptr;
 void* CUserMessages = nullptr;
 
@@ -97,6 +98,7 @@ DWORD dwPrepareSteamConnectResponse;
 DWORD dwGetUserMessageName;
 DWORD dwClientState = 0;
 IVEngineClient* g_pEngineClient = 0;
+DWORD dwDisconnectMessage = 0;
 
 template<typename FuncType>
 __forceinline static FuncType CallVFunction(void* ppClass, int index)
@@ -190,6 +192,17 @@ bool __fastcall Hooked_PrepareSteamConnectResponse(DWORD* ecx, void* edx, int ke
 	return true;
 }
 
+//https://github.com/VSES/SourceEngine2007/blob/master/src_main/common/protocol.h
+#define DELTASIZE_BITS		20	// must be: 2^DELTASIZE_BITS > (NET_MAX_PAYLOAD * 8)
+//https://github.com/0TheSpy/hl2sdk/blob/master/public/const.h
+#define	MAX_EDICT_BITS				11			// # of bits needed to represent max edicts
+// Max # of edicts in a level
+#define	MAX_EDICTS					(1<<MAX_EDICT_BITS)
+// Used for networking ehandles.
+#define NUM_ENT_ENTRY_BITS		(MAX_EDICT_BITS + 1)
+#define NUM_ENT_ENTRIES			(1 << NUM_ENT_ENTRY_BITS)
+#define ENT_ENTRY_MASK			(NUM_ENT_ENTRIES - 1)
+#define INVALID_EHANDLE_INDEX	0xFFFFFFFF
 
 #define MAX_OSPATH 260
 
@@ -624,6 +637,43 @@ __declspec(naked) void getEIP()
 	__asm ret
 }
 
+enum UpdateType
+{
+	EnterPVS = 0,	// Entity came back into pvs, create new entity if one doesn't exist
+	LeavePVS,		// Entity left pvs
+	DeltaEnt,		// There is a delta for this entity.
+	PreserveEnt,	// Entity stays alive but no delta ( could be LOD, or just unchanged )
+	Finished,		// finished parsing entities successfully
+	Failed,			// parsing error occured while reading entities
+};
+
+//https://github.com/VSES/SourceEngine2007/blob/master/src_main/common/protocol.h
+// Flags for delta encoding header
+enum
+{
+	FHDR_ZERO = 0x0000,
+	FHDR_LEAVEPVS = 0x0001,
+	FHDR_DELETE = 0x0002,
+	FHDR_ENTERPVS = 0x0004,
+};
+
+int m_nHeaderBase = -1;
+int m_nNewEntity = -1;
+int m_nOldEntity = -1;
+
+//https://github.com/ValveSoftware/source-sdk-2013/blob/master/mp/src/public/iclientnetworkable.h
+// NOTE: All of these are commented out; NotifyShouldTransmit actually
+// has all these in them. Left it as an enum in case we want to go back though
+enum DataUpdateType_t
+{
+	DATA_UPDATE_CREATED = 0,	// indicates it was created +and+ entered the pvs
+	//	DATA_UPDATE_ENTERED_PVS,
+	DATA_UPDATE_DATATABLE_CHANGED,
+	//	DATA_UPDATE_LEFT_PVS,
+	//	DATA_UPDATE_DESTROYED,		// FIXME: Could enable this, but it's a little worrying
+									// since it changes a bunch of existing code
+};
+
 DWORD NC; //INetChannel
 DWORD NetChannel_SendNetMsg = 0;
 void ReturnCvarValue(INetChannel* pThis, EQueryCvarValueStatus status, QueryCvarCookie_t cookie, const char* cvarname, char* value_to_pass)
@@ -778,8 +828,31 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 					printfdbg("Net_StringCmd Rejected: %s\n", stringcmd);
 					continue;
 				}
-			}
 
+				
+				if (cmd == net_SignonState)
+				{
+					byte m_nSignonState = buf.ReadByte();
+					long m_nSpawnCount = buf.ReadLong();
+					  
+					if (m_nSignonState == g_pCVar->FindVar("cm_fakeconnect")->GetInt() + 2) //3-5
+					{  
+						auto clientport = g_pCVar->FindVar("clientport");
+						clientport->SetValue(clientport->GetInt() + 1);
+						printfdbg("Set client port to %d\n", clientport->GetInt());
+						*(BYTE*)(dwDisconnectMessage - 5) = 0xEB;
+						CallVFunction<IVEngineClient* (__thiscall*)(void*, char*)>(g_pEngineClient, 97)(g_pEngineClient, 
+							"disconnect; net_start"); 
+						*(BYTE*)(dwDisconnectMessage - 5) = 0x74;
+						return false; 
+					}
+
+					buf = backup;
+				}
+				
+				 
+			}
+			 
 			if (!netmsg->ReadFromBuffer(buf))
 			{
 				printfdbg("Netchannel: failed reading message %s from %s.\n", netmsg->GetName(), pThis->GetAddress());
@@ -811,6 +884,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				RespondCvarValue("cm_friendsid", "", eQueryCvarValueStatus_CvarNotFound);
 				RespondCvarValue("cm_forcemap", "", eQueryCvarValueStatus_CvarNotFound);
 				RespondCvarValue("cm_drawspray", "", eQueryCvarValueStatus_CvarNotFound);
+				RespondCvarValue("cm_fakeconnect", "", eQueryCvarValueStatus_CvarNotFound); 
 				RespondCvarValue("se_lkblox", "0", eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("se_autobunnyhopping", "0", eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("se_disablebunnyhopping", "0", eQueryCvarValueStatus_ValueIntact);
@@ -861,13 +935,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 					printfdbg("\n");
 				}
 			}
-
-			if (cmd == svc_CreateStringTable)
-			{
-				//getEIP();
-				//system("pause");
-			}
-
+			  
 			if (!netmsg->Process())
 			{
 				printfdbg("Netchannel: failed processing message %s.\n", netmsg->GetName());
@@ -1056,12 +1124,13 @@ bool __fastcall hkSetStringUserData(DWORD** this_, void* unk, char* userdata, in
 {
 	char* TableName = (char*)((int(__thiscall*)(DWORD**))(*this_)[1])(this_);
 
-	if (!stricmp(TableName, "downloadables") || !stricmp(TableName, "modelprecache")) { 
+	if (!stricmp(TableName, "downloadables") || !stricmp(TableName, "modelprecache")) {  
 		if (*(byte*)g_pCVar->FindVar("cm_forcemap")->GetString() != 0) {
 			string usrdata = string(userdata);
-			if (usrdata.find("maps/") != string::npos || usrdata.find("maps\\") != string::npos)  
-				sprintf(userdata, "maps/%s.bsp", g_pCVar->FindVar("cm_forcemap")->GetString());  
-		}
+			if (usrdata.find("maps/") != string::npos || usrdata.find("maps\\") != string::npos) {
+				sprintf(userdata, "maps/%s.bsp", g_pCVar->FindVar("cm_forcemap")->GetString()); 
+			}
+		} 
 	}
 	 
 	if (length && !stricmp(TableName, "userinfo")) 
@@ -1129,7 +1198,7 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		printfdbg("g_pCVar %x\n", g_pCVar);
 
 		CallVFunction<IVEngineClient* (__thiscall*)(void*, char*)>(g_pEngineClient, 97)(g_pEngineClient, //g_pEngineClient->ExecuteClientCmd
-			"setinfo cm_steamid 1337; setinfo cm_steamid_random 1; setinfo cm_enabled 1; setinfo cm_version \"3.0.0.9130\"; setinfo cm_friendsid 3735928559; setinfo cm_drawspray 0; setinfo cm_friendsname \"Hello World\"; setinfo cm_forcemap \"\"");
+			"setinfo cm_steamid 1337; setinfo cm_steamid_random 1; setinfo cm_enabled 1; setinfo cm_version \"3.0.0.9135\"; setinfo cm_friendsid 3735928559; setinfo cm_drawspray 0; setinfo cm_friendsname \"Hello World\"; setinfo cm_forcemap \"\"; setinfo cm_fakeconnect 0");
 
 		//FCVAR_PROTECTED 
 		g_pCVar->FindVar("cm_steamid")->m_nFlags = 537001984;
@@ -1147,7 +1216,8 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		g_pCVar->FindVar("sv_cheats")->m_nFlags = 0;
 		g_pCVar->FindVar("cl_downloadfilter")->m_pszHelpString = "Determines which files can be downloaded from the server(all, none, nosounds, mapsonly)";
 		g_pCVar->FindVar("cm_forcemap")->m_nFlags = 537001984;
-
+		g_pCVar->FindVar("cm_fakeconnect")->m_nFlags = 537001984;
+		 
 		//g_pEngineClient->ExecuteClientCmd("setinfo se_lkblox 0; setinfo se_autobunnyhopping 0; setinfo se_disablebunnyhopping 0; setinfo e_viewmodel_right 0; setinfo e_viewmodel_fov 0; setinfo e_viewmodel_up 0;");
 
 		dwPrepareSteamConnectResponse = scan.FindPattern(XorStr("engine.dll"), XorStr("\x81\xEC\x00\x00\x00\x00\x56\x8B\xF1\x8B\x0D\x00\x00\x00\x00\x8B\x01\xFF\x50\x24"), XorStr("xx????xxxxx????xxxxx")); //engine.dll+5D50
@@ -1262,17 +1332,19 @@ DWORD WINAPI HackThread(HMODULE hModule)
 	//ConCommandBaseMgr::OneTimeInit(&g_ConVarAccessor);  
 
 #ifdef DISCMSG
-	DWORD dwDisconnectMessage;  DWORD oldDscmsg;
+	DWORD oldDscmsg;
 	if (!srcds) {
-		dwDisconnectMessage = scan.FindPattern(XorStr("engine.dll"), XorStr("\x74\x14\x8b\x01\x68\x0\x0\x0\x0\xff\x90"), XorStr("xxxxx????xx")) + 5; //dwEngine + 0x61cc; 
+		dwDisconnectMessage = scan.FindPattern(XorStr("engine.dll"), XorStr("\x74\x14\x8b\x01\x68\x0\x0\x0\x0\xff\x90"), XorStr("xxxxx????xx")); //dwEngine + 0x61cc; 
 		printfdbg("dwDisconnectMessage %x\n", dwDisconnectMessage);
+		if (dwDisconnectMessage) {
+			char* dscmsg = "Disconnect by ClientMod\0";
 
-		char* dscmsg = "Disconnect by ClientMod\0";
-
-		DWORD oldProtect;
-		VirtualProtect((PVOID)(dwDisconnectMessage), 4, PAGE_EXECUTE_READWRITE, &oldProtect);
-		memcpy(&oldDscmsg, (PVOID)(dwDisconnectMessage), 4);
-		memcpy((PVOID)(dwDisconnectMessage), &dscmsg, 4); // CBaseClientState::Disconnect
+			DWORD oldProtect;
+			VirtualProtect((PVOID)(dwDisconnectMessage), 0x10, PAGE_EXECUTE_READWRITE, &oldProtect);
+			dwDisconnectMessage += 5;
+			memcpy(&oldDscmsg, (PVOID)(dwDisconnectMessage), 4);
+			memcpy((PVOID)(dwDisconnectMessage), &dscmsg, 4); // CBaseClientState::Disconnect
+		}
 	}
 #endif
 
@@ -1300,7 +1372,8 @@ DWORD WINAPI HackThread(HMODULE hModule)
 
 #ifdef DISCMSG
 	if (!srcds)
-		memcpy((PVOID)(dwDisconnectMessage), &oldDscmsg, 4);
+		if (dwDisconnectMessage)
+			memcpy((PVOID)(dwDisconnectMessage), &oldDscmsg, 4);
 #endif
 
 	DetourTransactionBegin();
@@ -1341,6 +1414,7 @@ BOOL APIENTRY DllMain(HMODULE hModule,
 	{
 	case DLL_PROCESS_ATTACH:
 	{
+		hMod = hModule;
 		HANDLE hdl = CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)HackThread, hModule, 0, nullptr);
 		if (hdl) CloseHandle(hdl);
 		break;
