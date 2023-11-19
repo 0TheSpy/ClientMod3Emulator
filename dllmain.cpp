@@ -1212,6 +1212,7 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		g_pCVar->FindVar("cl_downloadfilter")->m_pszHelpString = "Determines which files can be downloaded from the server(all, none, nosounds, mapsonly)";
 		g_pCVar->FindVar("cm_forcemap")->m_nFlags = 537001984;
 		g_pCVar->FindVar("cm_fakeconnect")->m_nFlags = 537001984;
+		g_pCVar->FindVar("cm_fakeconnect")->m_pszHelpString = "Drop connection at state: (1 = SIGNONSTATE_CONNECTED, 2 = SIGNONSTATE_NEW, 3 = SIGNONSTATE_PRESPAWN, 4 = SIGNONSTATE_SPAWN, 5 = SIGNONSTATE_FULL).";
 		 
 		//g_pEngineClient->ExecuteClientCmd("setinfo se_lkblox 0; setinfo se_autobunnyhopping 0; setinfo se_disablebunnyhopping 0; setinfo e_viewmodel_right 0; setinfo e_viewmodel_fov 0; setinfo e_viewmodel_up 0;");
 
