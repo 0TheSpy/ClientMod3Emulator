@@ -222,6 +222,7 @@ bool __fastcall Hooked_PrepareSteamConnectResponse(DWORD* ecx, void* edx, int ke
 #define svc_FixAngle 19
 #define svc_SetPause 11
 #define svc_ServerInfo 8
+#define svc_CreateStringTable 12
 
 class CNetMessage : public INetMessage
 {
@@ -861,6 +862,12 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				}
 			}
 
+			if (cmd == svc_CreateStringTable)
+			{
+				//getEIP();
+				//system("pause");
+			}
+
 			if (!netmsg->Process())
 			{
 				printfdbg("Netchannel: failed processing message %s.\n", netmsg->GetName());
@@ -1042,28 +1049,30 @@ bool __fastcall hkSVC_ServerInfo_ReadFromBuffer(int this_, void* unk, int buf)
 	}
 	return ret;
 }
-
-DWORD dwCMapLoader_Init = 0; char* maptoload;
-typedef int(__cdecl* pCMapLoader_Init)(int a1, char* Source);
-int __cdecl hkCMapLoader_Init(int a1, char* Source)
+ 
+DWORD dwSetStringUserData = 0;
+typedef char* (__thiscall* pSetStringUserData)(DWORD** this_, const void* userdata, int stringNumber, void* length);
+bool __fastcall hkSetStringUserData(DWORD** this_, void* unk, char* userdata, int stringNumber, int* length)
 {
-	__asm mov eax, esp
-	__asm mov eax, [eax + 0xC]
-		__asm add eax, 4
-	__asm mov maptoload, eax
-	printfdbg("CMapLoaderInit %s\n", Source);
+	char* TableName = (char*)((int(__thiscall*)(DWORD**))(*this_)[1])(this_);
 
-	if ((int)maptoload != 4) {
-		if (*(byte*)g_pCVar->FindVar("cm_forcemap")->GetString() != 0)
-			sprintf(maptoload, "maps/%s.bsp", g_pCVar->FindVar("cm_forcemap")->GetString());
-		else
-			strncpy(maptoload, CallVFunction<char* (__thiscall*)(void*)>(g_pEngineClient, 52)(g_pEngineClient), 64); //GetLevelName
+	if (!stricmp(TableName, "downloadables") || !stricmp(TableName, "modelprecache")) { 
+		if (*(byte*)g_pCVar->FindVar("cm_forcemap")->GetString() != 0) {
+			string usrdata = string(userdata);
+			if (usrdata.find("maps/") != string::npos || usrdata.find("maps\\") != string::npos)  
+				sprintf(userdata, "maps/%s.bsp", g_pCVar->FindVar("cm_forcemap")->GetString());  
+		}
 	}
-
-	static pCMapLoader_Init CMapLoader_Init = (pCMapLoader_Init)dwCMapLoader_Init;
-	auto ret = CMapLoader_Init(a1, Source);
+	 
+	if (length && !stricmp(TableName, "userinfo")) 
+		printfdbg("SetStringUserData %s: %s %s %s %x %s\n", TableName, userdata, length, ((int)(length)+0x24), *(int*)((int)(length)+0x48), ((int)(length)+0x4c));
+	//else printfdbg("SetStringUserData %s: %d %s\n", TableName, stringNumber, userdata);
+	  
+	static pSetStringUserData SetStringUserData = (pSetStringUserData)dwSetStringUserData;
+	auto ret = SetStringUserData(this_, userdata, stringNumber, length);
 	return ret;
 }
+
 
 DWORD WINAPI HackThread(HMODULE hModule)
 {
@@ -1120,7 +1129,7 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		printfdbg("g_pCVar %x\n", g_pCVar);
 
 		CallVFunction<IVEngineClient* (__thiscall*)(void*, char*)>(g_pEngineClient, 97)(g_pEngineClient, //g_pEngineClient->ExecuteClientCmd
-			"setinfo cm_steamid 1337; setinfo cm_steamid_random 1; setinfo cm_enabled 1; setinfo cm_version \"3.0.0.9130\"; setinfo cm_friendsid 3735928559; setinfo cm_drawspray 0; setinfo cm_friendsname \"Hello World\"; setinfo cm_forcemap de_dust2");
+			"setinfo cm_steamid 1337; setinfo cm_steamid_random 1; setinfo cm_enabled 1; setinfo cm_version \"3.0.0.9130\"; setinfo cm_friendsid 3735928559; setinfo cm_drawspray 0; setinfo cm_friendsname \"Hello World\"; setinfo cm_forcemap \"\"");
 
 		//FCVAR_PROTECTED 
 		g_pCVar->FindVar("cm_steamid")->m_nFlags = 537001984;
@@ -1228,8 +1237,8 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		XorStr("xx?xxxxxx?xxxxx"));
 	printfdbg("dwSVC_ServerInfo_ReadFromBuffer %x\n", dwSVC_ServerInfo_ReadFromBuffer);
 
-	dwCMapLoader_Init = scan.FindPattern(XorStr("engine.dll"), XorStr("\xa1\xae\xae\xae\xae\x83\xc0\xae\x81\xec"), XorStr("x????xx?xx"));
-	printfdbg("dwCMapLoader_Init %x\n", dwCMapLoader_Init);
+	dwSetStringUserData = scan.FindPattern(XorStr("engine.dll"), XorStr("\x56\x57\x8b\x7c\x24\xae\x85\xff\x8b\xf1\x75\xae\x8b\x06"), XorStr("xxxxx?xxxxx?xx"));
+	printfdbg("dwSetStringUserData %x\n", dwSetStringUserData);
 
 	DetourTransactionBegin();
 	DetourUpdateThread(GetCurrentThread());
@@ -1242,7 +1251,7 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		DetourAttach(&(LPVOID&)(dwDownloadManager_Queue), (PBYTE)hkDownloadManager_Queue);
 		DetourAttach(&(LPVOID&)(dwFindClientClass), (PBYTE)hkFindClientClass);
 		DetourAttach(&(LPVOID&)(dwSVC_ServerInfo_ReadFromBuffer), (PBYTE)hkSVC_ServerInfo_ReadFromBuffer);
-		DetourAttach(&(LPVOID&)(dwCMapLoader_Init), (PBYTE)hkCMapLoader_Init);
+		DetourAttach(&(LPVOID&)(dwSetStringUserData), (PBYTE)hkSetStringUserData); 
 	}
 
 	DetourAttach(&(LPVOID&)dwProcessMessages, &Hooked_ProcessMessages);
@@ -1304,7 +1313,7 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		DetourDetach(&(LPVOID&)(dwDownloadManager_Queue), reinterpret_cast<BYTE*>(hkDownloadManager_Queue));
 		DetourDetach(&(LPVOID&)(dwFindClientClass), reinterpret_cast<BYTE*>(hkFindClientClass));
 		DetourDetach(&(LPVOID&)(dwSVC_ServerInfo_ReadFromBuffer), reinterpret_cast<BYTE*>(hkSVC_ServerInfo_ReadFromBuffer));
-		DetourDetach(&(LPVOID&)(dwCMapLoader_Init), reinterpret_cast<BYTE*>(hkCMapLoader_Init));
+		DetourDetach(&(LPVOID&)(dwSetStringUserData), reinterpret_cast<BYTE*>(hkSetStringUserData)); 
 	}
 	DetourDetach(&(LPVOID&)dwProcessMessages, reinterpret_cast<BYTE*>(Hooked_ProcessMessages));
 	DetourDetach(&(LPVOID&)(dwSendNetMsg), reinterpret_cast<BYTE*>(hkSendNetMsg));
