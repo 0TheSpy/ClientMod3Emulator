@@ -1212,8 +1212,8 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		g_pCVar->FindVar("cl_downloadfilter")->m_pszHelpString = "Determines which files can be downloaded from the server(all, none, nosounds, mapsonly)";
 		g_pCVar->FindVar("cm_forcemap")->m_nFlags = 537001984;
 		g_pCVar->FindVar("cm_fakeconnect")->m_nFlags = 537001984;
-		g_pCVar->FindVar("cm_fakeconnect")->m_pszHelpString = "Drop connection at state: (1 = SIGNONSTATE_CONNECTED, 2 = SIGNONSTATE_NEW, 3 = SIGNONSTATE_PRESPAWN, 4 = SIGNONSTATE_SPAWN, 5 = SIGNONSTATE_FULL).";
-		 
+		g_pCVar->FindVar("cm_fakeconnect")->m_pszHelpString = "Drop connection at signon state: (1 = CONNECTED, 2 = NEW, 3 = PRESPAWN, 4 = SPAWN, 5 = FULL).";
+		
 		//g_pEngineClient->ExecuteClientCmd("setinfo se_lkblox 0; setinfo se_autobunnyhopping 0; setinfo se_disablebunnyhopping 0; setinfo e_viewmodel_right 0; setinfo e_viewmodel_fov 0; setinfo e_viewmodel_up 0;");
 
 		dwPrepareSteamConnectResponse = scan.FindPattern(XorStr("engine.dll"), XorStr("\x81\xEC\x00\x00\x00\x00\x56\x8B\xF1\x8B\x0D\x00\x00\x00\x00\x8B\x01\xFF\x50\x24"), XorStr("xx????xxxxx????xxxxx")); //engine.dll+5D50
