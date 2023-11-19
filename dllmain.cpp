@@ -1137,6 +1137,16 @@ bool __fastcall hkSetStringUserData(DWORD** this_, void* unk, char* userdata, in
 	return ret;
 }
 
+void ConsoleInputThread(HMODULE hModule)
+{
+	char input[255];
+	while (true) {
+		printfdbg("Enter your command:\n"); 
+		cin.getline(input, sizeof(input));  
+		CallVFunction<IVEngineClient* (__thiscall*)(void*, char*)>(g_pEngineClient, 97)(g_pEngineClient, //g_pEngineClient->ExecuteClientCmd
+			input); 
+	}
+}
 
 DWORD WINAPI HackThread(HMODULE hModule)
 {
@@ -1272,6 +1282,13 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		}
 	}
 
+	char* cmdline = GetCommandLineA(); 
+	if (_tcsstr(cmdline, _T("-textmode")) != NULL) 
+	{
+		printfdbg("hl2 launched with -textmode\n");
+		CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)ConsoleInputThread, hModule, 0, nullptr);
+	}
+	
 	dwProcessMessages = scan.FindPattern(XorStr("engine.dll"), XorStr("\x83\xEC\x2C\x53\x55\x89\x4C\x24\x10"), XorStr("xxxxxxxxx"));
 
 	printfdbg("dwPrepareSteamConnectResponse %x\n", dwPrepareSteamConnectResponse);
