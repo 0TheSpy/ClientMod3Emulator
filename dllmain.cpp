@@ -1029,9 +1029,12 @@ bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg, bo
 
 	if (cmd == clc_ClientInfo)
 	{
-		CLC_ClientInfo* Cl = (CLC_ClientInfo*)&msg;
-		Cl->m_nFriendsID = uint32(atof(g_pCVar->FindVar("cm_friendsid")->GetString()));
-		strncpy(Cl->m_FriendsName, g_pCVar->FindVar("cm_friendsname")->GetString(), 32);
+		if (g_pCVar->FindVar("cm_enabled")->GetInt())
+		{
+			CLC_ClientInfo* Cl = (CLC_ClientInfo*)&msg;
+			Cl->m_nFriendsID = uint32(atof(g_pCVar->FindVar("cm_friendsid")->GetString()));
+			strncpy(Cl->m_FriendsName, g_pCVar->FindVar("cm_friendsname")->GetString(), 32);
+		}
 		/*
 		Cl->m_nCustomFiles[0] = 0;
 		Cl->m_nCustomFiles[1] = 0;
