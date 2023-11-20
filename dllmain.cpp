@@ -461,7 +461,7 @@ void Hooked_BuildConVarUpdateMessage(NET_SetConVar* cvarMsg, int flags, bool non
 		AddtoTail("cl_autobuy"); 
 		AddtoTail("cl_interp_ratio");
 		AddtoTail("closecaption");
-		AddtoTail("voice_loopback");
+		AddtoTailWithVal("voice_loopback","0");
 		AddtoTail("cl_autowepswitch");   
 	}
 
