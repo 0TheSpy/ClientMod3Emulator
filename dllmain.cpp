@@ -1132,7 +1132,7 @@ bool __fastcall hkSetStringUserData(DWORD** this_, void* unk, char* userdata, in
 	}
 	 
 	if (length && !stricmp(TableName, "userinfo")) 
-		printfdbg("svc_CreateStringTable %s: %s %s %s %x %s\n", TableName, userdata, length, ((int)(length)+0x24), *(int*)((int)(length)+0x48), ((int)(length)+0x4c));
+		printfdbg("svc_CreateStringTable %s: %s %s %d %s %x %s\n", TableName, userdata, length, *(int*)((int)(length)+0x20), ((int)(length)+0x24), *(int*)((int)(length)+0x48), ((int)(length)+0x4c));
 	//else printfdbg("svc_CreateStringTable %s: %d %s\n", TableName, stringNumber, userdata);
 	  
 	static pSetStringUserData SetStringUserData = (pSetStringUserData)dwSetStringUserData;
