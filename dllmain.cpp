@@ -1289,6 +1289,7 @@ DWORD WINAPI HackThread(HMODULE hModule)
 	if (_tcsstr(cmdline, _T("-textmode")) != NULL) 
 	{
 		printfdbg("hl2 launched with -textmode\n");
+		freopen_s(&f, "CONIN$", "r", stdin);
 		CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)ConsoleInputThread, hModule, 0, nullptr);
 	}
 	
