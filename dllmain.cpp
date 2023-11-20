@@ -411,6 +411,14 @@ void* GetInterface(const char* dllname, const char* interfacename)
 	return ointerface;
 }
 
+#define AddtoTailWithVal(cvar, val) strncpy(acvar.name, XorStr(cvar), MAX_OSPATH);\
+strncpy(acvar.value, val, MAX_OSPATH);\
+cvarMsg->m_ConVars.AddToTail(acvar);
+
+#define AddtoTail(cvar) strncpy(acvar.name, XorStr(cvar), MAX_OSPATH);\
+strncpy(acvar.value, g_pCVar->FindVar(cvar)->GetString(), MAX_OSPATH);\
+cvarMsg->m_ConVars.AddToTail(acvar);
+
 DWORD dwBuildConVarUpdateMessage;
 typedef void(__cdecl* BuildConVarUpdateMessageFn)(NET_SetConVar*, int, bool);
 
@@ -425,26 +433,36 @@ void Hooked_BuildConVarUpdateMessage(NET_SetConVar* cvarMsg, int flags, bool non
 
 	NET_SetConVar::cvar_t acvar;
 
-	if (g_pCVar->FindVar("cm_enabled")->GetInt())
+		if (g_pCVar->FindVar("cm_enabled")->GetInt())
 	{
-		strncpy(acvar.name, XorStr("clantag"), MAX_OSPATH);
-		strncpy(acvar.value, XorStr("spy"), MAX_OSPATH);
-		cvarMsg->m_ConVars.AddToTail(acvar);
-
-		//strncpy(acvar.name, XorStr("name"), MAX_OSPATH);
-		//strncpy(acvar.value, XorStr("\nk\no\nn\nr\na\nd"), MAX_OSPATH);
-		//cvarMsg->m_ConVars.AddToTail(acvar);
-
-		strncpy(acvar.name, XorStr("_client_version"), MAX_OSPATH);
-		strncpy(acvar.value, g_pCVar->FindVar("cm_version")->GetString(), MAX_OSPATH);
-		cvarMsg->m_ConVars.AddToTail(acvar);
-
-		strncpy(acvar.name, XorStr("~clientmod"), MAX_OSPATH);
-		strncpy(acvar.value, XorStr("2.0"), MAX_OSPATH);
-
-		cvarMsg->m_ConVars.AddToTail(acvar);
-
-		cvarMsg->m_ConVars.RemoveMultipleFromHead(2);
+		cvarMsg->m_ConVars.RemoveAll(); 
+		AddtoTail("cl_team"); 
+		AddtoTail("cl_updaterate"); 
+		AddtoTailWithVal("_client_version", g_pCVar->FindVar("cm_version")->GetString());
+		AddtoTail("cl_interp"); 
+		AddtoTailWithVal("~clientmod", "2.0");
+		AddtoTail("cl_lagcompensation"); 
+		AddtoTail("cl_interp_npcs");
+		AddtoTail("cl_interpolate");
+		AddtoTail("cl_cmdrate");
+		AddtoTail("cl_language");
+		AddtoTail("english");
+		AddtoTail("name"); 
+		AddtoTail("cl_autohelp"); 
+		AddtoTail("cl_predictweapons");
+		AddtoTail("cl_rebuy");
+		AddtoTail("cl_class");
+		AddtoTailWithVal("clantag", "");
+		AddtoTail("tv_nochat"); 
+		AddtoTail("hap_HasDevice");
+		AddtoTail("cl_predict");
+		AddtoTail("cl_spec_mode");
+		AddtoTail("rate");
+		AddtoTail("cl_autobuy"); 
+		AddtoTail("cl_interp_ratio");
+		AddtoTail("closecaption");
+		AddtoTail("voice_loopback");
+		AddtoTail("cl_autowepswitch");   
 	}
 
 	//auto s = cvarMsg->m_ConVars.begin();
