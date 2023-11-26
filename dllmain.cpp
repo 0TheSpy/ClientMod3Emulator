@@ -66,8 +66,8 @@ void* CUserMessages = nullptr;
 #include <igameevents.h>
 
 //#define TIMEDACCESS
-#include "TimedAccess.h"
 #ifdef TIMEDACCESS
+#include "TimedAccess.h"
 #include <WtsApi32.h>  
 HMODULE hModuleWtsapi32 = LoadLibrary("Wtsapi32.dll");
 
@@ -1198,8 +1198,10 @@ DWORD WINAPI HackThread(HMODULE hModule)
 #endif
 
 	printfdbg(XorStr("ClientMod 3 Emulator\nOriginal code: InFro, updated by Spy\nCredits to cssandroid & atryrkakiv\n"));
-	const time_t CompileTime = __TIME_UNIX__;
-	printfdbg("Compile time: %s", ctime(&CompileTime));
+	printfdbg("Compile time %s\n", __TIMESTAMP__);
+	auto curtime = time(0);
+	auto gmtm = gmtime(&curtime);
+	printfdbg("Current time: %s\n", asctime(gmtm));
 
 	SigScan scan;
 
@@ -1220,8 +1222,11 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		g_pGameConsole->ColorPrintf(clr2, "cssandroid ");
 		g_pGameConsole->ColorPrintf(clr1, "and ");
 		g_pGameConsole->ColorPrintf(clr2, "atryrkakiv\n");
-		g_pGameConsole->ColorPrintf(clr1, "Compile time: ");
-		g_pGameConsole->ColorPrintf(clr2, ctime(&CompileTime));
+		g_pGameConsole->ColorPrintf(clr1, "Compile time: "); 
+		g_pGameConsole->ColorPrintf(clr2, __TIMESTAMP__);
+		g_pGameConsole->ColorPrintf(clr1, "\nCurrent time: ");
+		g_pGameConsole->ColorPrintf(clr2, asctime(gmtm));
+
 
 		g_pCVar = ((ICvar * (*)(void))GetProcAddress(GetModuleHandleA("vstdlib.dll"), "GetCVarIF"))();
 		printfdbg("g_pCVar %x\n", g_pCVar);
