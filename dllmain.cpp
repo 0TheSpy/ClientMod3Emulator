@@ -4,11 +4,10 @@
 #define DISCMSG
 //#define TIMEDACCESS 
 
-bool srcds = false;
-
 #include <Windows.h>
 #include <iostream>  
 
+bool srcds = false; bool textmode = false;
 int (WINAPIV* __vsnprintf)(char*, size_t, const char*, va_list) = _vsnprintf;
 
 #include <inetmessage.h>
@@ -37,6 +36,9 @@ class IVEngineClient;
 #include "detours.h"
 #include "sigscan.h"
 
+//#include "hash.h"
+//#include "defs.h"
+
 //#pragma comment(lib, "mysqlcppconn.lib")
 #pragma comment(lib, "public/tier0.lib")
 #pragma comment(lib, "public\\tier1.lib")
@@ -45,8 +47,26 @@ class IVEngineClient;
 
 using namespace std;
 
+#include <fstream>
+bool log_ = false;
+ofstream logfile;
 #ifdef DEBUG
-#define printfdbg printf
+#include <iomanip>
+//#define printfdbg printf
+void printfdbg(const char* format, ...)
+{
+	va_list arglist;  
+	auto time = std::time(nullptr);
+	std::cout << std::put_time(std::localtime(&time), "[%H:%M:%S] "); 
+	logfile << std::put_time(std::localtime(&time), "[%H:%M:%S] ");
+	va_start(arglist, format);
+	//vprintf(format, arglist); 
+	char logstring[1024];
+	vsprintf(logstring, format, arglist);
+	va_end(arglist);  
+	printf(logstring);
+	logfile << logstring;
+}
 #else
 #define printfdbg(...)
 #endif
@@ -65,7 +85,7 @@ void* CUserMessages = nullptr;
 
 #include <igameevents.h>
 
-//#define TIMEDACCESS
+//#define TIMEDACCESS 
 #ifdef TIMEDACCESS
 #include "TimedAccess.h"
 #include <WtsApi32.h>  
@@ -100,6 +120,19 @@ DWORD dwClientState = 0;
 IVEngineClient* g_pEngineClient = 0;
 DWORD dwDisconnectMessage = 0;
 
+struct CM
+{
+	int NumPlayers = 0;
+	int UserID = 0;
+	char Map[255];
+	int Port = 0;
+	int MaxPlayers = 0;
+	int ServerCount = 0;
+	int FriendsID = 0;
+	int PlayerSlot = 0;
+}; CM* _CM = new CM;
+
+
 template<typename FuncType>
 __forceinline static FuncType CallVFunction(void* ppClass, int index)
 {
@@ -112,14 +145,18 @@ __forceinline static FuncType CallVFunction(void* ppClass, int index)
 #include <random>
 std::default_random_engine generator(time(0));
 std::uniform_int_distribution<uint32_t> distribution(1, MAXINT);
+std::uniform_int_distribution<uint32_t> friendsID(0xD000000, 0xDD00000);
+
+#include "Emulators/Setti.h"
 
 typedef bool(__thiscall* PrepareSteamConnectResponseFn)(void*, int, const char*, uint64, bool, const netadr_t&, bf_write&);
 bool __fastcall Hooked_PrepareSteamConnectResponse(DWORD* ecx, void* edx, int keySize, const char* encryptionKey, uint64 unGSSteamID, bool bGSSecure, const netadr_t& adr, bf_write& msg)
 {
-	printfdbg("Hooked_PrepareSteamConnectResponse called\n");
+	printfdbg("PrepareSteamConnectResponse called\n");
 
 	static PrepareSteamConnectResponseFn PrepareSteamConnectResponse = (PrepareSteamConnectResponseFn)dwPrepareSteamConnectResponse;
-
+	
+	 
 	srand(time(NULL));
 	unsigned int steamid = 0;
 	if (g_pCVar->FindVar("cm_steamid_random")->GetInt())
@@ -127,15 +164,18 @@ bool __fastcall Hooked_PrepareSteamConnectResponse(DWORD* ecx, void* edx, int ke
 	else
 		steamid = g_pCVar->FindVar("cm_steamid")->GetInt();
 
-	msg.WriteShort(0x98);
-
+	msg.WriteShort(0x98); 
 	msg.WriteLong('S');
 
 	char hwid[64];
 
 	CreateRandomString(hwid, 32);
-	if (!RevSpoofer::Spoof(hwid, steamid))
-		return false;
+	if (!RevSpoofer::Spoof(hwid, steamid)) {
+		printfdbg("RevSpoofer::Spoof ERROR\n");
+		Sleep(10);
+		return Hooked_PrepareSteamConnectResponse(ecx, edx, keySize, encryptionKey, unGSSteamID, bGSSecure, adr, msg);
+		//return false;
+	}
 
 	DWORD dwRevHash = RevSpoofer::Hash(hwid);
 
@@ -187,8 +227,8 @@ bool __fastcall Hooked_PrepareSteamConnectResponse(DWORD* ecx, void* edx, int ke
 		0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 	};
 	msg.WriteBytes(staticEnd, sizeof(staticEnd));
-
-	//hexDump(0, msg.m_pData, msg.GetNumBytesWritten());
+	
+	//hexDump(0, msg.m_pData, msg.GetNumBytesWritten()); 
 	return true;
 }
 
@@ -411,6 +451,9 @@ void* GetInterface(const char* dllname, const char* interfacename)
 	return ointerface;
 }
 
+DWORD dwBuildConVarUpdateMessage;
+typedef void(__cdecl* BuildConVarUpdateMessageFn)(NET_SetConVar*, int, bool);
+
 #define AddtoTailWithVal(cvar, val) strncpy(acvar.name, XorStr(cvar), MAX_OSPATH);\
 strncpy(acvar.value, val, MAX_OSPATH);\
 cvarMsg->m_ConVars.AddToTail(acvar);
@@ -419,12 +462,10 @@ cvarMsg->m_ConVars.AddToTail(acvar);
 strncpy(acvar.value, g_pCVar->FindVar(cvar)->GetString(), MAX_OSPATH);\
 cvarMsg->m_ConVars.AddToTail(acvar);
 
-DWORD dwBuildConVarUpdateMessage;
-typedef void(__cdecl* BuildConVarUpdateMessageFn)(NET_SetConVar*, int, bool);
 
 //https://github.com/VSES/SourceEngine2007/blob/master/src_main/engine/host.cpp
 void Hooked_BuildConVarUpdateMessage(NET_SetConVar* cvarMsg, int flags, bool nonDefault)
-{
+{ 
 	printfdbg("Hooked_BuildConVarUpdateMessage called\n");
 
 	static BuildConVarUpdateMessageFn BuildConVarUpdateMessage = (BuildConVarUpdateMessageFn)dwBuildConVarUpdateMessage;
@@ -433,39 +474,38 @@ void Hooked_BuildConVarUpdateMessage(NET_SetConVar* cvarMsg, int flags, bool non
 
 	NET_SetConVar::cvar_t acvar;
 
-		if (g_pCVar->FindVar("cm_enabled")->GetInt())
+	if (g_pCVar->FindVar("cm_enabled")->GetInt())
 	{
-		cvarMsg->m_ConVars.RemoveAll(); 
-		AddtoTail("cl_team"); 
-		AddtoTail("cl_updaterate"); 
+		cvarMsg->m_ConVars.RemoveAll();
+		AddtoTail("cl_team");
+		AddtoTail("cl_updaterate");
 		AddtoTailWithVal("_client_version", g_pCVar->FindVar("cm_version")->GetString());
-		AddtoTail("cl_interp"); 
+		AddtoTail("cl_interp");
 		AddtoTailWithVal("~clientmod", "2.0");
-		AddtoTail("cl_lagcompensation"); 
+		AddtoTail("cl_lagcompensation");
 		AddtoTail("cl_interp_npcs");
 		AddtoTail("cl_interpolate");
 		AddtoTail("cl_cmdrate");
 		AddtoTail("cl_language");
 		AddtoTail("english");
-		AddtoTail("name"); 
-		AddtoTail("cl_autohelp"); 
+		AddtoTail("name");
+		AddtoTail("cl_autohelp");
 		AddtoTail("cl_predictweapons");
 		AddtoTail("cl_rebuy");
 		AddtoTail("cl_class");
 		AddtoTailWithVal("clantag", "");
-		AddtoTail("tv_nochat"); 
+		AddtoTail("tv_nochat");
 		AddtoTail("hap_HasDevice");
 		AddtoTail("cl_predict");
 		AddtoTail("cl_spec_mode");
 		AddtoTail("rate");
-		AddtoTail("cl_autobuy"); 
+		AddtoTail("cl_autobuy");
 		AddtoTail("cl_interp_ratio");
 		AddtoTail("closecaption");
 		AddtoTailWithVal("voice_loopback","0");
-		AddtoTail("cl_autowepswitch");   
+		AddtoTail("cl_autowepswitch");
 	}
-
-	//auto s = cvarMsg->m_ConVars.begin();
+	 
 	for (int i = 0; i < cvarMsg->m_ConVars.Size(); i++) {
 		printfdbg("%d %s : %s\n", i, cvarMsg->m_ConVars[i].name, cvarMsg->m_ConVars[i].value);
 	}
@@ -808,22 +848,25 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				{
 					printfdbg("svc_ServerInfo:\n");
 					printfdbg("m_nProtocol %d\n", (uint16)buf.ReadUBitLong(16));
-					printfdbg("m_nServerCount %d\n", (uint16)buf.ReadUBitLong(32));
+					_CM->ServerCount = (uint32)buf.ReadUBitLong(32);
+					printfdbg("m_nServerCount %d\n", _CM->ServerCount);
 					printfdbg("m_bIsHLTV %d\n", (byte)buf.ReadOneBit() != 0);
 					printfdbg("m_bIsDedicated %d\n", (byte)buf.ReadOneBit() != 0);
 					printfdbg("m_nClientCRC %x\n", (long)buf.ReadLong());
 					printfdbg("m_nMaxClasses %d\n", (WORD)buf.ReadWord());
 					printfdbg("m_nMapCRC %x\n", (long)buf.ReadLong());
-					printfdbg("m_nPlayerSlot %d\n", (byte)buf.ReadByte());
-					printfdbg("m_nMaxClients %d\n", (byte)buf.ReadByte());
+					_CM->PlayerSlot = (byte)buf.ReadByte();
+					printfdbg("m_nPlayerSlot %d\n", _CM->PlayerSlot);
+					_CM->MaxPlayers = (byte)buf.ReadByte();
+					printfdbg("m_nMaxClients %d\n", _CM->MaxPlayers);
 					printfdbg("m_fTickInterval %f\n", (float32)buf.ReadFloat());
 					printfdbg("m_cOS %c\n", (byte)buf.ReadChar());
 					char GameDir[1024]; buf.ReadString(GameDir, sizeof(GameDir));
-					char MapName[1024]; buf.ReadString(MapName, sizeof(MapName));
+					buf.ReadString(_CM->Map, sizeof(_CM->Map));
 					char SkyName[1024]; buf.ReadString(SkyName, sizeof(SkyName));
 					char HostName[1024]; buf.ReadString(HostName, sizeof(HostName));
 					printfdbg("m_szGameDirBuffer %s\n", GameDir);
-					printfdbg("m_szMapNameBuffer %s\n", MapName);
+					printfdbg("m_szMapNameBuffer %s\n", _CM->Map);
 					printfdbg("m_szSkyNameBuffer %s\n", SkyName);
 					printfdbg("m_szHostNameBuffer %s\n", HostName);
 					buf = backup;
@@ -846,9 +889,9 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 					printfdbg("Net_StringCmd Rejected: %s\n", stringcmd);
 					continue;
 				}
-				   
+
 			}
-			 
+
 			if (!netmsg->ReadFromBuffer(buf))
 			{
 				printfdbg("Netchannel: failed reading message %s from %s.\n", netmsg->GetName(), pThis->GetAddress());
@@ -858,14 +901,14 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 			if (cmd != net_Tick && cmd != svc_PacketEntities && cmd != svc_UserMessage && cmd != clc_Move &&
 				cmd != svc_Sounds && cmd != svc_GameEvent && cmd != svc_TempEntities)
 			{
-				printfdbg("Income msg %d from %s: %s", cmd, pThis->GetAddress(), netmsg->ToString());
+				printfdbg("Income msg %d from %s: %s\n", cmd, pThis->GetAddress(), netmsg->ToString());
 				if (!srcds)
 					if (cmd == svc_FixAngle || cmd == svc_SetPause)
 					{
-						printfdbg(" Rejected\n");
+						//printf(" Rejected\n");
 						continue;
 					}
-				printfdbg("\n");
+				//printf("\n");
 			}
 
 			if (cmd == svc_GetCvarValue)
@@ -876,17 +919,31 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				RespondCvarValue("cm_steamid_random", "", eQueryCvarValueStatus_CvarNotFound);
 				RespondCvarValue("cm_version", "", eQueryCvarValueStatus_CvarNotFound);
 				RespondCvarValue("cm_enabled", "", eQueryCvarValueStatus_CvarNotFound);
-				RespondCvarValue("cm_friendsname", "", eQueryCvarValueStatus_CvarNotFound);
-				RespondCvarValue("cm_friendsid", "", eQueryCvarValueStatus_CvarNotFound);
 				RespondCvarValue("cm_forcemap", "", eQueryCvarValueStatus_CvarNotFound);
 				RespondCvarValue("cm_drawspray", "", eQueryCvarValueStatus_CvarNotFound);
-				RespondCvarValue("cm_fakeconnect", "", eQueryCvarValueStatus_CvarNotFound); 
+				RespondCvarValue("cm_fakeconnect", "", eQueryCvarValueStatus_CvarNotFound);
+				RespondCvarValue("cm_log", "", eQueryCvarValueStatus_CvarNotFound);
 				RespondCvarValue("se_lkblox", "0", eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("se_autobunnyhopping", "0", eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("se_disablebunnyhopping", "0", eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("e_viewmodel_right", "0", eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("e_viewmodel_fov", "0", eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("e_viewmodel_up", "0", eQueryCvarValueStatus_ValueIntact);
+
+				RespondCvarValue("se_respawn_on_death", "0", eQueryCvarValueStatus_ValueIntact);
+				RespondCvarValue("e_blood_scale", "1", eQueryCvarValueStatus_ValueIntact);
+				RespondCvarValue("e_bob_lower_amt", "21", eQueryCvarValueStatus_ValueIntact);
+				RespondCvarValue("mat_potato_mode", "0", eQueryCvarValueStatus_ValueIntact);
+				RespondCvarValue("mat_async_tex_maxtime_ms", "0.5", eQueryCvarValueStatus_ValueIntact);
+				RespondCvarValue("mat_colcorrection_disableentities", "0", eQueryCvarValueStatus_ValueIntact);
+				RespondCvarValue("se_doubleduck", "0", eQueryCvarValueStatus_ValueIntact);
+				RespondCvarValue("se_nowinpanel", "1", eQueryCvarValueStatus_ValueIntact);
+				RespondCvarValue("e_showserverinfo", "0", eQueryCvarValueStatus_ValueIntact);
+
+				RespondCvarValue("async_toggle_priority", "", eQueryCvarValueStatus_CvarNotFound);
+				RespondCvarValue("_client_version", "3.0.0.9135", eQueryCvarValueStatus_ValueIntact);
+				RespondCvarValue("~clientmod", "2.0", eQueryCvarValueStatus_ValueIntact);
+
 				RespondCvarValue("net_blockmsg", "none", eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("net_compresspackets_minsize", "128", eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("windows_speaker_config", "4", eQueryCvarValueStatus_ValueIntact);
@@ -931,7 +988,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 					printfdbg("\n");
 				}
 			}
-			  
+
 			if (!netmsg->Process())
 			{
 				printfdbg("Netchannel: failed processing message %s.\n", netmsg->GetName());
@@ -948,7 +1005,6 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 	return true;
 }
 
-
 enum
 {
 	SERVERSIDE = 0,		// this is a server side listener, event logger etc
@@ -957,7 +1013,6 @@ enum
 	SERVERSIDE_OLD,		// legacy support for old server event listeners
 	CLIENTSIDE_OLD,		// legecy support for old client event listeners
 };
-
 
 //Ultr@Hook fix 
 void __fastcall hkWriteListenEventList(CGameEventManager* _this, void* edx, int msg) //SVC_GameEventList*
@@ -1004,6 +1059,15 @@ void __fastcall hkWriteListenEventList(CGameEventManager* _this, void* edx, int 
 	return;
 }
 
+#define SIGNONSTATE_NONE		0	// no state yet, about to connect
+#define SIGNONSTATE_CHALLENGE	1	// client challenging server, all OOB packets
+#define SIGNONSTATE_CONNECTED	2	// client is connected to server, netchans ready
+#define SIGNONSTATE_NEW			3	// just got serverinfo and string tables
+#define SIGNONSTATE_PRESPAWN	4	// received signon buffers
+#define SIGNONSTATE_SPAWN		5	// ready to receive entity packets
+#define SIGNONSTATE_FULL		6	// we are fully connected, first non-delta packet received
+#define SIGNONSTATE_CHANGELEVEL	7	// server is changing level, please wait
+
 
 DWORD dwSendNetMsg;
 typedef bool(__thiscall* pSendNetMsg)(INetChannel* pNetChan, INetMessage& msg, bool bVoice);
@@ -1013,11 +1077,16 @@ bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg, bo
 	if (cmd != net_Tick && cmd != clc_Move && cmd != svc_UserMessage && cmd != svc_GameEvent && cmd != clc_BaselineAck)
 		printfdbg("Outcome msg %d: %s\n", cmd, msg.ToString()); //msg.GetName()
 
-	if (!srcds) 
-	{
+	if (!srcds) {
 		if (cmd == net_SignonState)
 		{
 			byte m_nSignonState = *(DWORD*)((DWORD)&msg + 0x10);
+
+			if (textmode && (m_nSignonState == SIGNONSTATE_FULL))
+			{
+				CallVFunction<IVEngineClient* (__thiscall*)(void*, char*)>(g_pEngineClient, 97)(g_pEngineClient,
+					"jointeam; +voicerecord");
+			}
 
 			if (m_nSignonState == g_pCVar->FindVar("cm_fakeconnect")->GetInt() + 1) //2-5
 			{
@@ -1032,7 +1101,7 @@ bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg, bo
 			}
 		}
 	}
-	 
+
 	if (cmd == svc_UserMessage)
 	{
 		byte usermsgID = *(DWORD*)((DWORD)&msg + 0x10);
@@ -1050,8 +1119,14 @@ bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg, bo
 		if (g_pCVar->FindVar("cm_enabled")->GetInt())
 		{
 			CLC_ClientInfo* Cl = (CLC_ClientInfo*)&msg;
-			Cl->m_nFriendsID = uint32(atof(g_pCVar->FindVar("cm_friendsid")->GetString()));
-			strncpy(Cl->m_FriendsName, g_pCVar->FindVar("cm_friendsname")->GetString(), 32);
+			Cl->m_nFriendsID = friendsID(generator);
+			_CM->FriendsID = Cl->m_nFriendsID;
+
+			string addr = string(this_->GetAddress());
+			addr = addr.substr(addr.find(":") + 1, addr.size());
+			_CM->Port = stoi(addr.c_str());
+
+			//GenerateFriendsName(Cl->m_FriendsName, 16);
 		}
 		/*
 		Cl->m_nCustomFiles[0] = 0;
@@ -1127,7 +1202,7 @@ bool __fastcall hkSVC_ServerInfo_ReadFromBuffer(int this_, void* unk, int buf)
 {
 	static pSVC_ServerInfo_ReadFromBuffer SVC_ServerInfo_ReadFromBuffer = (pSVC_ServerInfo_ReadFromBuffer)dwSVC_ServerInfo_ReadFromBuffer;
 	auto ret = SVC_ServerInfo_ReadFromBuffer(this_, buf);
-	 
+
 	if (*(byte*)g_pCVar->FindVar("cm_forcemap")->GetString() != 0)
 	{
 		int v11 = this_ + 328;
@@ -1136,46 +1211,104 @@ bool __fastcall hkSVC_ServerInfo_ReadFromBuffer(int this_, void* unk, int buf)
 	}
 	return ret;
 }
- 
+
 DWORD dwSetStringUserData = 0;
 typedef char* (__thiscall* pSetStringUserData)(DWORD** this_, const void* userdata, int stringNumber, void* length);
 bool __fastcall hkSetStringUserData(DWORD** this_, void* unk, char* userdata, int stringNumber, int* length)
 {
 	char* TableName = (char*)((int(__thiscall*)(DWORD**))(*this_)[1])(this_);
 
-	if (!stricmp(TableName, "downloadables") || !stricmp(TableName, "modelprecache")) {  
+	if (!stricmp(TableName, "downloadables") || !stricmp(TableName, "modelprecache")) {
 		if (*(byte*)g_pCVar->FindVar("cm_forcemap")->GetString() != 0) {
 			string usrdata = string(userdata);
 			if (usrdata.find("maps/") != string::npos || usrdata.find("maps\\") != string::npos) {
-				sprintf(userdata, "maps/%s.bsp", g_pCVar->FindVar("cm_forcemap")->GetString()); 
+				sprintf(userdata, "maps/%s.bsp", g_pCVar->FindVar("cm_forcemap")->GetString());
 			}
-		} 
+		}
 	}
-	 
-	if (length && !stricmp(TableName, "userinfo")) 
+
+	if (length && !stricmp(TableName, "userinfo"))
+	{
+		_CM->NumPlayers = stoi(userdata);
+		if (_CM->NumPlayers == _CM->PlayerSlot)
+		{
+			_CM->UserID = *(int*)((int)(length)+0x20);
+			printf(">> ");
+		}
 		printfdbg("svc_CreateStringTable %s: %s %s %d %s %x %s\n", TableName, userdata, length, *(int*)((int)(length)+0x20), ((int)(length)+0x24), *(int*)((int)(length)+0x48), ((int)(length)+0x4c));
+		_CM->NumPlayers++;
+	}
 	//else printfdbg("svc_CreateStringTable %s: %d %s\n", TableName, stringNumber, userdata);
-	  
+
 	static pSetStringUserData SetStringUserData = (pSetStringUserData)dwSetStringUserData;
 	auto ret = SetStringUserData(this_, userdata, stringNumber, length);
 	return ret;
+}
+
+
+DWORD dwCvarSetValue = 0;
+ 
+typedef short(__thiscall* pCvarSetValue)(ConVar* this_, char* String);
+short __fastcall hkCvarSetValue(ConVar* this_, void* unk, char* String1)
+{ 
+	if (V_stricmp(this_->GetName(), "cm_log") == 0)
+	{
+		int newlog = -1; 
+		if (V_stricmp(String1, "0") == 0)
+			newlog = 0;
+		else if (V_stricmp(String1, "1") == 0)
+			newlog = 1;
+		
+		if (newlog != -1 && newlog != g_pCVar->FindVar("cm_log")->GetInt())
+		{
+			//changed
+			g_pCVar->FindVar("cm_log")->SetValue(newlog);
+			log_ = newlog;
+			if (newlog == 1)
+			{
+				//createNewLogFile
+				char logname[MAX_PATH]; 
+				auto time = std::time(nullptr);
+				std::tm* tm = std::localtime(&time);
+				char timebuffer[26];
+				std::strftime(timebuffer, sizeof(timebuffer), "%Y-%m-%d_%H-%M-%S", tm); 
+				sprintf(logname, "SpyLog_%s.txt", timebuffer);  
+				printfdbg("Log name: %s\n", logname);
+				logfile.open(logname, std::ofstream::out | std::ofstream::app); 
+				if (!logfile) { 
+					cout << "Failed to open\n";
+				}
+			}
+
+			if (newlog == 0)
+			{
+				//saveLogFile ;
+				printfdbg("Saved log\n");
+				logfile.close();  
+			}
+		}
+	}
+
+	static pCvarSetValue CvarSetValue = (pCvarSetValue)dwCvarSetValue;
+	auto ret = CvarSetValue(this_, String1);
+	  
+	return ret; 
 }
 
 void ConsoleInputThread(HMODULE hModule)
 {
 	char input[255];
 	while (true) {
-		printfdbg("Enter your command:\n"); 
-		cin.getline(input, sizeof(input));  
+		cin.getline(input, sizeof(input));
 		CallVFunction<IVEngineClient* (__thiscall*)(void*, char*)>(g_pEngineClient, 97)(g_pEngineClient, //g_pEngineClient->ExecuteClientCmd
-			input); 
+			input);
 	}
 }
 
 DWORD WINAPI HackThread(HMODULE hModule)
 {
 #ifdef DEBUG
-	AllocConsole(); FILE* f; freopen_s(&f, "CONOUT$", "w", stdout);
+	AllocConsole(); FILE* f; freopen_s(&f, "CONOUT$", "w", stdout); //freopen_s(&f, "CONIN$", "r", stdin);
 #endif
 
 	TCHAR szExeFileName[MAX_PATH];
@@ -1188,7 +1321,6 @@ DWORD WINAPI HackThread(HMODULE hModule)
 	char client_dll[] = "client.dll";
 	if (srcds) strcpy(client_dll, "server.dll");
 
-
 #ifdef TIMEDACCESS
 	printfdbg("compile time %d\n", compiletime);
 	curtime = gTime();
@@ -1196,20 +1328,20 @@ DWORD WINAPI HackThread(HMODULE hModule)
 	timer = compiletime + duration - curtime;
 	mStartedTime = chrono::system_clock::now();
 #endif
-
+	 
 	printfdbg(XorStr("ClientMod 3 Emulator\nOriginal code: InFro, updated by Spy\nCredits to cssandroid & atryrkakiv\n"));
 	printfdbg("Compile time %s\n", __TIMESTAMP__);
 	auto curtime = time(0);
 	auto gmtm = gmtime(&curtime);
 	printfdbg("Current time: %s\n", asctime(gmtm));
-
+	 
 	SigScan scan;
 
 	g_GameEventManager = (CGameEventManager*)GetInterface("engine.dll", "GAMEEVENTSMANAGER002");
 
 	g_pEngineClient = (IVEngineClient*)GetInterface("engine.dll", "VEngineClient012");
 
-	if (!srcds) {
+	if (!srcds) { 
 		DWORD dwEngine = (DWORD)GetModuleHandleA("engine.dll");
 
 		IGameConsole* g_pGameConsole = (IGameConsole*)GetInterface(XorStr("gameui.dll"), XorStr("GameConsole003"));
@@ -1227,33 +1359,26 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		g_pGameConsole->ColorPrintf(clr1, "\nCurrent time: ");
 		g_pGameConsole->ColorPrintf(clr2, asctime(gmtm));
 
-
 		g_pCVar = ((ICvar * (*)(void))GetProcAddress(GetModuleHandleA("vstdlib.dll"), "GetCVarIF"))();
 		printfdbg("g_pCVar %x\n", g_pCVar);
 
 		CallVFunction<IVEngineClient* (__thiscall*)(void*, char*)>(g_pEngineClient, 97)(g_pEngineClient, //g_pEngineClient->ExecuteClientCmd
-			"setinfo cm_steamid 1337; setinfo cm_steamid_random 1; setinfo cm_enabled 1; setinfo cm_version \"3.0.0.9135\"; setinfo cm_friendsid 3735928559; setinfo cm_drawspray 0; setinfo cm_friendsname \"Hello World\"; setinfo cm_forcemap \"\"; setinfo cm_fakeconnect 0");
+			"setinfo cm_steamid 1337; setinfo cm_steamid_random 1; setinfo cm_enabled 1; setinfo cm_version \"3.0.0.9135\"; setinfo cm_drawspray 0; setinfo cm_forcemap \"\"; setinfo cm_fakeconnect 0; setinfo cm_log 0");
 
 		//FCVAR_PROTECTED 
 		g_pCVar->FindVar("cm_steamid")->m_nFlags = 537001984;
 		g_pCVar->FindVar("cm_steamid_random")->m_nFlags = 537001984;
 		g_pCVar->FindVar("cm_version")->m_nFlags = 537001984;
 		g_pCVar->FindVar("cm_enabled")->m_nFlags = 537001984;
-		g_pCVar->FindVar("cm_friendsname")->m_nFlags = 537001984;
-		auto CvFriendsid = g_pCVar->FindVar("cm_friendsid");
-		CvFriendsid->m_nFlags = 537001984;
-		CvFriendsid->m_bHasMin = true;
-		CvFriendsid->m_fMinVal = 0;
-		CvFriendsid->m_bHasMax = true;
-		CvFriendsid->m_fMaxVal = 4294967295.000000;
 		g_pCVar->FindVar("cm_drawspray")->m_nFlags = 537001984;
 		g_pCVar->FindVar("sv_cheats")->m_nFlags = 0;
 		g_pCVar->FindVar("cl_downloadfilter")->m_pszHelpString = "Determines which files can be downloaded from the server(all, none, nosounds, mapsonly)";
 		g_pCVar->FindVar("cm_forcemap")->m_nFlags = 537001984;
 		g_pCVar->FindVar("cm_fakeconnect")->m_nFlags = 537001984;
+		g_pCVar->FindVar("cm_log")->m_nFlags = 537001984;
 		g_pCVar->FindVar("cm_fakeconnect")->m_pszHelpString = "Drop connection at signon state: (1 = CONNECTED, 2 = NEW, 3 = PRESPAWN, 4 = SPAWN, 5 = FULL).";
-		
-		//g_pEngineClient->ExecuteClientCmd("setinfo se_lkblox 0; setinfo se_autobunnyhopping 0; setinfo se_disablebunnyhopping 0; setinfo e_viewmodel_right 0; setinfo e_viewmodel_fov 0; setinfo e_viewmodel_up 0;");
+		   
+		dwCvarSetValue = scan.FindPattern(XorStr("engine.dll"), XorStr("\x83\xec\xae\xa1\xae\xae\xae\xae\x33\xc4\x56\x89\x44\x24"), XorStr("xx?x????xxxxxx")); 
 
 		dwPrepareSteamConnectResponse = scan.FindPattern(XorStr("engine.dll"), XorStr("\x81\xEC\x00\x00\x00\x00\x56\x8B\xF1\x8B\x0D\x00\x00\x00\x00\x8B\x01\xFF\x50\x24"), XorStr("xx????xxxxx????xxxxx")); //engine.dll+5D50
 		dwBuildConVarUpdateMessage = scan.FindPattern(XorStr("engine.dll"), XorStr("\xE8\x00\x00\x00\x00\x8D\x54\x24\x3C"), XorStr("x????xxxx"));
@@ -1262,7 +1387,7 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		NetChannel_SendNetMsg = scan.FindPattern(XorStr("engine.dll"), XorStr("\x56\x8b\xf1\x8d\x4e\xae\xe8\xae\xae\xae\xae\x85\xc0\x75"), XorStr("xxxxx?x????xxx"));
 		printfdbg("NetChannel_SendNetMsg %x\n", NetChannel_SendNetMsg);
 
-		/*
+		///*
 		auto CBaseClientState_ProcessGetCvarValue = scan.FindPattern(XorStr("engine.dll"), XorStr("\xff\x92\xae\xae\xae\xae\x83\xc8\xae\x89\x84\x24\xae\xae\xae\xae\xc7\x44\x24\xae\xae\xae\xae\xae\x89\x84\x24\xae\xae\xae\xae\x8b\x8c\x24"),
 			XorStr("xx????xx?xxx????xxx?????xxx????xxx"));
 		printfdbg("CBaseClientState_ProcessGetCvarValue %x\n", CBaseClientState_ProcessGetCvarValue);
@@ -1274,7 +1399,7 @@ DWORD WINAPI HackThread(HMODULE hModule)
 			VirtualProtect((PVOID)(CBaseClientState_ProcessGetCvarValue), sizeof(PGCVpatch), PAGE_EXECUTE_READWRITE, &oldProtect);
 			memcpy((PVOID)CBaseClientState_ProcessGetCvarValue, PGCVpatch, sizeof(PGCVpatch));
 		}
-		*/
+		//*/
 
 		dwDownloadManager_Queue = scan.FindPattern(XorStr("engine.dll"),
 			XorStr("\x6a\xae\x68\xae\xae\xae\xae\x64\xa1\xae\xae\xae\xae\x50\x64\x89\x25\xae\xae\xae\xae\x83\xec\xae\x53\x8b\x5c\x24\xae\x85\xdb"),
@@ -1311,14 +1436,17 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		}
 	}
 
-	char* cmdline = GetCommandLineA(); 
-	if (_tcsstr(cmdline, _T("-textmode")) != NULL) 
-	{
-		printfdbg("hl2 launched with -textmode\n");
+	char* cmdline = GetCommandLineA();
+	if (_tcsstr(cmdline, _T("-textmode")) != NULL) { 
+		textmode = true;
+		CallVFunction<IVEngineClient* (__thiscall*)(void*, char*)>(g_pEngineClient, 97)(g_pEngineClient, //g_pEngineClient->ExecuteClientCmd
+			"voice_inputfromfile 1");
+		 
 		freopen_s(&f, "CONIN$", "r", stdin);
+		printfdbg("hl2 launched with -textmode\n");
 		CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)ConsoleInputThread, hModule, 0, nullptr);
 	}
-	
+
 	dwProcessMessages = scan.FindPattern(XorStr("engine.dll"), XorStr("\x83\xEC\x2C\x53\x55\x89\x4C\x24\x10"), XorStr("xxxxxxxxx"));
 
 	printfdbg("dwPrepareSteamConnectResponse %x\n", dwPrepareSteamConnectResponse);
@@ -1340,7 +1468,10 @@ DWORD WINAPI HackThread(HMODULE hModule)
 	printfdbg("CUserMessages_ %x\n", CUserMessages);
 	dwDispatchUserMessage = scan.FindPattern(XorStr(client_dll), XorStr("\x8b\x44\x24\xae\x83\xec\xae\x85\xc0\x0f\x8c"), XorStr("xxx?xx?xxxx"));
 	printfdbg("dwDispatchUserMessage %x\n", dwDispatchUserMessage);
-	dwGetUserMessageName = scan.FindPattern(XorStr(client_dll), XorStr("\x56\x8b\x74\x24\xae\x85\xf6\x57\x8b\xf9\x7c\xae\x3b\x77\xae\x7c\xae\x56\x68\xae\xae\xae\xae\xff\x15\xae\xae\xae\xae\x83\xc4\xae\x8b\x4f\xae\x8d\x04\x76\x8b\x44\xc1"), XorStr("xxxx?xxxxxx?xx?x?xx????xx????xx?xx?xxxxxx"));
+	 
+	dwGetUserMessageName = scan.FindPattern(XorStr(client_dll), 
+		XorStr("\x56\x8b\x74\x24\xae\x85\xf6\x57\x8b\xf9\x7c\xae\x3b\x77\xae\x7c\xae\x56\x68\xae\xae\xae\xae\xff\x15\xae\xae\xae\xae\x83\xc4\xae\x8b\x4f\xae\x8d\x04\x76\x8b\x44\xc1"), 
+		XorStr("xxxx?xxxxxx?xx?x?xx????xx????xx?xx?xxxxxx"));
 	printfdbg("dwGetUserMessageName %x\n", dwGetUserMessageName);
 
 	dwSendNetMsg = scan.FindPattern(XorStr("engine.dll"), XorStr("\xcc\x56\x8b\xf1\x8d\x4e\x74"), XorStr("xxxxxxx")) + 1; //dwEngine + 0xff950;
@@ -1364,7 +1495,9 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		DetourAttach(&(LPVOID&)(dwDownloadManager_Queue), (PBYTE)hkDownloadManager_Queue);
 		DetourAttach(&(LPVOID&)(dwFindClientClass), (PBYTE)hkFindClientClass);
 		DetourAttach(&(LPVOID&)(dwSVC_ServerInfo_ReadFromBuffer), (PBYTE)hkSVC_ServerInfo_ReadFromBuffer);
-		DetourAttach(&(LPVOID&)(dwSetStringUserData), (PBYTE)hkSetStringUserData); 
+		DetourAttach(&(LPVOID&)(dwSetStringUserData), (PBYTE)hkSetStringUserData);
+
+		DetourAttach(&(LPVOID&)(dwCvarSetValue), (PBYTE)hkCvarSetValue); 
 	}
 
 	DetourAttach(&(LPVOID&)dwProcessMessages, &Hooked_ProcessMessages);
@@ -1429,7 +1562,9 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		DetourDetach(&(LPVOID&)(dwDownloadManager_Queue), reinterpret_cast<BYTE*>(hkDownloadManager_Queue));
 		DetourDetach(&(LPVOID&)(dwFindClientClass), reinterpret_cast<BYTE*>(hkFindClientClass));
 		DetourDetach(&(LPVOID&)(dwSVC_ServerInfo_ReadFromBuffer), reinterpret_cast<BYTE*>(hkSVC_ServerInfo_ReadFromBuffer));
-		DetourDetach(&(LPVOID&)(dwSetStringUserData), reinterpret_cast<BYTE*>(hkSetStringUserData)); 
+		DetourDetach(&(LPVOID&)(dwSetStringUserData), reinterpret_cast<BYTE*>(hkSetStringUserData));
+
+		DetourDetach(&(LPVOID&)(dwCvarSetValue), reinterpret_cast<BYTE*>(hkCvarSetValue)); 
 	}
 	DetourDetach(&(LPVOID&)dwProcessMessages, reinterpret_cast<BYTE*>(Hooked_ProcessMessages));
 	DetourDetach(&(LPVOID&)(dwSendNetMsg), reinterpret_cast<BYTE*>(hkSendNetMsg));
