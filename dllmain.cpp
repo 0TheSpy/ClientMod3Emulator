@@ -1295,6 +1295,85 @@ short __fastcall hkCvarSetValue(ConVar* this_, void* unk, char* String1)
 	return ret; 
 }
 
+
+DWORD dwReadSubChannelData = 0;
+#define FRAGMENT_BITS		8
+#define FRAGMENT_SIZE		(1<<FRAGMENT_BITS)
+#define MAX_FILE_SIZE		((1<<MAX_FILE_SIZE_BITS)-1)	// maximum transferable size is	64MB
+#define MAX_FILE_SIZE_BITS 26
+#define NET_MAX_PALYLOAD_BITS 17
+#define MAX_STREAMS 2
+typedef char(__thiscall* pReadSubChannelData)(void* this_, bf_read& buf, int stream);
+char __fastcall hkReadSubChannelData(void* this_, void* edx, bf_read& buf, int stream)
+{
+	auto buf_copy = buf;
+	bool bSingleBlock = buf.ReadOneBit() == 0; // is single block ? 
+	unsigned int startFragment = 0;
+	unsigned int numFragments = 0;
+	unsigned int offset = 0;
+	unsigned int length = 0;
+	unsigned int nUncompressedSize = 0;
+	unsigned int max_payload_bits = 0;
+	unsigned int isFile = 0;
+	unsigned int transferID = 0;
+	char filename[MAX_OSPATH] =  "";
+	bool compressed = 0;
+	unsigned int bytes = 0;
+	 
+	if (!bSingleBlock)
+	{
+		startFragment = buf.ReadUBitLong(MAX_FILE_SIZE_BITS - FRAGMENT_BITS); // 16 MB max
+		numFragments = buf.ReadUBitLong(3);  // 8 fragments per packet max
+		offset = startFragment * FRAGMENT_SIZE;
+		length = numFragments * FRAGMENT_SIZE;
+	}
+
+	if (offset == 0) // first fragment, read header info
+	{
+		auto max_payload_bits = buf.ReadUBitLong(NET_MAX_PALYLOAD_BITS);
+		if (bSingleBlock)
+		{
+			// data compressed ?
+			compressed = buf.ReadOneBit();
+			if (compressed)
+			{ 
+				nUncompressedSize = buf.ReadUBitLong(MAX_FILE_SIZE_BITS);
+			}  
+			max_payload_bits = buf.ReadUBitLong(NET_MAX_PALYLOAD_BITS);
+		}
+		else
+		{
+			isFile = buf.ReadOneBit();
+			if (isFile) // is it a file ?
+			{
+				transferID = buf.ReadUBitLong(32);
+				buf.ReadString(filename, MAX_OSPATH);
+			} 
+			// data compressed ?
+			compressed = buf.ReadOneBit();
+			if (compressed)
+			{
+				nUncompressedSize = buf.ReadUBitLong(MAX_FILE_SIZE_BITS);
+			}  
+			bytes = buf.ReadUBitLong(MAX_FILE_SIZE_BITS);
+		}
+		char* buffer = new char[length];
+		buf.ReadBytes(buffer, length); // read data
+		delete buffer;
+	}
+
+	printfdbg("ReadSubChannelData stream %d bSingleBlock %d offset %d length %d compressed %d isFile %d nUncompressedSize %d\n",
+		stream, bSingleBlock, offset, length, compressed, isFile, nUncompressedSize);
+
+	if (nUncompressedSize) return false;
+
+	buf = buf_copy;
+	static pReadSubChannelData ReadSubChannelData = (pReadSubChannelData)dwReadSubChannelData;
+	auto ret = ReadSubChannelData(this_, buf, stream);
+	return ret;
+}
+
+
 void ConsoleInputThread(HMODULE hModule)
 {
 	char input[255];
@@ -1448,8 +1527,10 @@ DWORD WINAPI HackThread(HMODULE hModule)
 	}
 
 	dwProcessMessages = scan.FindPattern(XorStr("engine.dll"), XorStr("\x83\xEC\x2C\x53\x55\x89\x4C\x24\x10"), XorStr("xxxxxxxxx"));
-
 	printfdbg("dwPrepareSteamConnectResponse %x\n", dwPrepareSteamConnectResponse);
+
+	dwReadSubChannelData = scan.FindPattern(XorStr("engine.dll"), XorStr("\x83\xec\xae\x8b\x44\x24\xae\x53\x8d\x14\x80"), XorStr("xx?xxx?xxxx"));
+	printfdbg("dwReadSubChannelData %x\n", dwReadSubChannelData);
 
 	DWORD dwWriteListenEventList;
 	if (!srcds) {
@@ -1502,7 +1583,8 @@ DWORD WINAPI HackThread(HMODULE hModule)
 
 	DetourAttach(&(LPVOID&)dwProcessMessages, &Hooked_ProcessMessages);
 	DetourAttach(&(LPVOID&)(dwSendNetMsg), (PBYTE)hkSendNetMsg);
-
+	DetourAttach(&(LPVOID&)(dwReadSubChannelData), (PBYTE)hkReadSubChannelData);
+	
 	DetourTransactionCommit();
 
 	//ConCommandBaseMgr::OneTimeInit(&g_ConVarAccessor);  
@@ -1568,7 +1650,8 @@ DWORD WINAPI HackThread(HMODULE hModule)
 	}
 	DetourDetach(&(LPVOID&)dwProcessMessages, reinterpret_cast<BYTE*>(Hooked_ProcessMessages));
 	DetourDetach(&(LPVOID&)(dwSendNetMsg), reinterpret_cast<BYTE*>(hkSendNetMsg));
-
+	DetourDetach(&(LPVOID&)(dwReadSubChannelData), reinterpret_cast<BYTE*>(hkReadSubChannelData)); 
+	
 	DetourTransactionCommit();
 
 	if (!srcds) {
