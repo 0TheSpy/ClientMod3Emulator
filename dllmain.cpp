@@ -1583,7 +1583,7 @@ DWORD WINAPI HackThread(HMODULE hModule)
 
 	DetourAttach(&(LPVOID&)dwProcessMessages, &Hooked_ProcessMessages);
 	DetourAttach(&(LPVOID&)(dwSendNetMsg), (PBYTE)hkSendNetMsg);
-	DetourAttach(&(LPVOID&)(dwReadSubChannelData), (PBYTE)hkReadSubChannelData);
+	//DetourAttach(&(LPVOID&)(dwReadSubChannelData), (PBYTE)hkReadSubChannelData);
 	
 	DetourTransactionCommit();
 
@@ -1650,7 +1650,7 @@ DWORD WINAPI HackThread(HMODULE hModule)
 	}
 	DetourDetach(&(LPVOID&)dwProcessMessages, reinterpret_cast<BYTE*>(Hooked_ProcessMessages));
 	DetourDetach(&(LPVOID&)(dwSendNetMsg), reinterpret_cast<BYTE*>(hkSendNetMsg));
-	DetourDetach(&(LPVOID&)(dwReadSubChannelData), reinterpret_cast<BYTE*>(hkReadSubChannelData)); 
+	//DetourDetach(&(LPVOID&)(dwReadSubChannelData), reinterpret_cast<BYTE*>(hkReadSubChannelData)); 
 	
 	DetourTransactionCommit();
 
