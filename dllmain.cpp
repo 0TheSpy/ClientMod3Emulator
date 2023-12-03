@@ -941,7 +941,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				RespondCvarValue("e_showserverinfo", "0", eQueryCvarValueStatus_ValueIntact);
 
 				RespondCvarValue("async_toggle_priority", "", eQueryCvarValueStatus_CvarNotFound);
-				RespondCvarValue("_client_version", "3.0.0.9135", eQueryCvarValueStatus_ValueIntact);
+				RespondCvarValue("_client_version", g_pCVar->FindVar("cm_version")->GetString(), eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("~clientmod", "2.0", eQueryCvarValueStatus_ValueIntact);
 
 				RespondCvarValue("net_blockmsg", "none", eQueryCvarValueStatus_ValueIntact);
