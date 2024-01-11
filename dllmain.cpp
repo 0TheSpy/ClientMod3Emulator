@@ -1094,7 +1094,7 @@ bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg, bo
 				printfdbg("Set client port to %d\n", clientport->GetInt());
 				*(BYTE*)(dwDisconnectMessage - 5) = 0xEB;
 				CallVFunction<IVEngineClient* (__thiscall*)(void*, char*)>(g_pEngineClient, 97)(g_pEngineClient,
-					"disconnect; net_start");
+					"disconnect; net_start; retry");
 				*(BYTE*)(dwDisconnectMessage - 5) = 0x74;
 				return false;
 			}
