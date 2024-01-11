@@ -1087,7 +1087,7 @@ bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg, bo
 					"jointeam; +voicerecord");
 			}
 
-			if (m_nSignonState == g_pCVar->FindVar("cm_fakeconnect")->GetInt() + 1) //2-5
+			if (m_nSignonState == g_pCVar->FindVar("cm_fakeconnect")->GetInt() + 1) //2-6
 			{
 				auto clientport = g_pCVar->FindVar("clientport");
 				clientport->SetValue(clientport->GetInt() + 1);
