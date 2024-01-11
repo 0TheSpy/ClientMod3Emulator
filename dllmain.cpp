@@ -48,7 +48,6 @@ class IVEngineClient;
 using namespace std;
 
 #include <fstream>
-bool log_ = false;
 ofstream logfile;
 #ifdef DEBUG
 #include <iomanip>
@@ -1263,7 +1262,6 @@ short __fastcall hkCvarSetValue(ConVar* this_, void* unk, char* String1)
 		{
 			//changed
 			g_pCVar->FindVar("cm_log")->SetValue(newlog);
-			log_ = newlog;
 			if (newlog == 1)
 			{
 				//createNewLogFile
