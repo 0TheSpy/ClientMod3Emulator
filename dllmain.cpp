@@ -1053,8 +1053,8 @@ void __fastcall hkWriteListenEventList(CGameEventManager* _this, void* edx, int 
 
 	printfdbg("WriteListenEventList: Total %d events listened. Bitset: ", totalListened);
 	for (int i = 0; i < 0x10; i++)
-		printfdbg("%08x ", *(uint*)(msg + 0x10 + i * 4)); //bits 0cc8a1c5 00000e0e 00003e60 
-	printfdbg("\n");
+		printf("%08x ", *(uint*)(msg + 0x10 + i * 4)); //bits 0cc8a1c5 00000e0e 00003e60 
+	printf("\n");
 
 	return;
 }
