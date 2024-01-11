@@ -36,8 +36,8 @@ class IVEngineClient;
 #include "detours.h"
 #include "sigscan.h"
 
-//#include "hash.h"
-//#include "defs.h"
+#include "hash.h"
+#include "defs.h"
 
 //#pragma comment(lib, "mysqlcppconn.lib")
 #pragma comment(lib, "public/tier0.lib")
@@ -1067,6 +1067,68 @@ void __fastcall hkWriteListenEventList(CGameEventManager* _this, void* edx, int 
 #define SIGNONSTATE_CHANGELEVEL	7	// server is changing level, please wait
 
 
+void MD5UpdateString(MD5Context_t* ctx, std::string str)
+{
+	MD5Update(ctx, (unsigned char*)(str.c_str()), str.length());
+}
+
+void BinaryToReadable(unsigned char* in, size_t inlen, std::string& out)
+{
+	char buf[4];
+	for (size_t i = 0; i < inlen; i++)
+	{
+		auto c = in[i];
+		snprintf(buf, sizeof(buf), (c <= ' ' || c >= 'y') ? "%02x" : "%01c", c);
+		out.append(buf);
+	}
+}
+
+void GenerateFriendsName(char* friendsName, size_t uMaxLength)
+{
+	MD5Context_t ctx;
+	unsigned char digest[16];
+
+	MD5Init(&ctx);
+
+	ctx.buf[0] += 0x20;
+	ctx.buf[1] -= 0x12;
+	ctx.buf[2] += 0x79;
+	ctx.buf[3] -= 0x8B;
+
+	char md5string[255];
+	sprintf(md5string, "7LRUT827L05D4GX7AG2LFR5NFI2SOHQ0%d0%d0%s%d%d%d%uDWXU38QN7A0X783WL2585UD753U0D6RE",
+		_CM->PlayerSlot + 1, _CM->UserID, _CM->Map, _CM->Port, _CM->MaxPlayers, _CM->ServerCount, _CM->FriendsID);
+
+	printfdbg("Key %s\n", md5string);
+	MD5UpdateString(&ctx, md5string);
+
+	MD5Final(digest, &ctx);
+
+	for (size_t i = 0; i < sizeof(digest); i++)
+	{
+		digest[i] ^= 0x12; // static key
+	}
+
+	std::string readableHash;
+	BinaryToReadable(digest, sizeof(digest), readableHash);
+
+	CRC32_t checksum = -1;
+	CRC32_ProcessBuffer(&checksum, digest, sizeof(digest));
+
+	checksum = ~checksum;
+
+	char szReadableHash[32];
+	strncpy(szReadableHash, readableHash.c_str(), sizeof(szReadableHash));
+
+	unsigned __int32 args[2];
+	args[1] = *(DWORD*)szReadableHash;
+	args[0] = checksum;
+
+	auto finalHash = friends_name_hash((unsigned char*)szReadableHash, sizeof(szReadableHash), *(unsigned __int64*)&args);
+
+	snprintf(friendsName, uMaxLength, "%16llX", finalHash);
+}
+
 DWORD dwSendNetMsg;
 typedef bool(__thiscall* pSendNetMsg)(INetChannel* pNetChan, INetMessage& msg, bool bVoice);
 bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg, bool bVoice)
@@ -1124,7 +1186,7 @@ bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg, bo
 			addr = addr.substr(addr.find(":") + 1, addr.size());
 			_CM->Port = stoi(addr.c_str());
 
-			//GenerateFriendsName(Cl->m_FriendsName, 16);
+			GenerateFriendsName(Cl->m_FriendsName, 16);
 		}
 		/*
 		Cl->m_nCustomFiles[0] = 0;
