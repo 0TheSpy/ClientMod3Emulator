@@ -171,9 +171,8 @@ bool __fastcall Hooked_PrepareSteamConnectResponse(DWORD* ecx, void* edx, int ke
 	CreateRandomString(hwid, 32);
 	if (!RevSpoofer::Spoof(hwid, steamid)) {
 		printfdbg("RevSpoofer::Spoof ERROR\n");
-		Sleep(10);
-		return Hooked_PrepareSteamConnectResponse(ecx, edx, keySize, encryptionKey, unGSSteamID, bGSSecure, adr, msg);
-		//return false;
+		CallVFunction<IVEngineClient* (__thiscall*)(void*, char*)>(g_pEngineClient, 97)(g_pEngineClient, "retry");
+		return false;
 	}
 
 	DWORD dwRevHash = RevSpoofer::Hash(hwid);
