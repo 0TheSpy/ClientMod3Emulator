@@ -1469,9 +1469,9 @@ DWORD WINAPI HackThread(HMODULE hModule)
 
 	printfdbg(XorStr("ClientMod 3 Emulator\nOriginal code: InFro, updated by Spy\nCredits to cssandroid & atryrkakiv\n"));
 	printfdbg("Compile time %s\n", __TIMESTAMP__);
-	auto curtime = time(0);
-	auto gmtm = gmtime(&curtime);
-	printfdbg("Current time: %s\n", asctime(gmtm)); 
+	//auto curtime = time(0);
+	//auto gmtm = gmtime(&curtime);
+	//printfdbg("Current time: %s\n", asctime(gmtm)); 
 	printfdbg("Project is free: https://github.com/0TheSpy/ClientMod3Emulator\n"); 
 
 	SigScan scan;
@@ -1495,9 +1495,9 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		g_pGameConsole->ColorPrintf(clr2, "atryrkakiv\n");
 		g_pGameConsole->ColorPrintf(clr1, "Compile time: ");
 		g_pGameConsole->ColorPrintf(clr2, __TIMESTAMP__);
-		g_pGameConsole->ColorPrintf(clr1, "\nCurrent time: ");
-		g_pGameConsole->ColorPrintf(clr2, asctime(gmtm));
-		g_pGameConsole->ColorPrintf(clr1, "Project is free: ");
+		//g_pGameConsole->ColorPrintf(clr1, "\nCurrent time: ");
+		//g_pGameConsole->ColorPrintf(clr2, asctime(gmtm));
+		//g_pGameConsole->ColorPrintf(clr1, "Project is free: ");
 		g_pGameConsole->ColorPrintf(clr2, "https://github.com/0TheSpy/ClientMod3Emulator");
 
 		g_pCVar = ((ICvar * (*)(void))GetProcAddress(GetModuleHandleA("vstdlib.dll"), "GetCVarIF"))();
