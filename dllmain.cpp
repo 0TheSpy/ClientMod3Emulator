@@ -936,6 +936,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				RespondCvarValue("mat_colcorrection_disableentities", "0", eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("se_doubleduck", "0", eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("se_nowinpanel", "1", eQueryCvarValueStatus_ValueIntact);
+				RespondCvarValue("se_newsmoke", "14", eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("e_showserverinfo", "0", eQueryCvarValueStatus_ValueIntact);
 
 				RespondCvarValue("async_toggle_priority", "", eQueryCvarValueStatus_CvarNotFound);
@@ -1497,8 +1498,8 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		g_pGameConsole->ColorPrintf(clr2, __TIMESTAMP__);
 		//g_pGameConsole->ColorPrintf(clr1, "\nCurrent time: ");
 		//g_pGameConsole->ColorPrintf(clr2, asctime(gmtm));
-		g_pGameConsole->ColorPrintf(clr1, "Project is free: ");
-		g_pGameConsole->ColorPrintf(clr2, "https://github.com/0TheSpy/ClientMod3Emulator");
+		g_pGameConsole->ColorPrintf(clr1, "\nProject is free: ");
+		g_pGameConsole->ColorPrintf(clr2, "https://github.com/0TheSpy/ClientMod3Emulator\n");
 
 		g_pCVar = ((ICvar * (*)(void))GetProcAddress(GetModuleHandleA("vstdlib.dll"), "GetCVarIF"))();
 		printfdbg("g_pCVar %x\n", g_pCVar);
