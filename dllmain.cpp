@@ -1471,7 +1471,8 @@ DWORD WINAPI HackThread(HMODULE hModule)
 	printfdbg("Compile time %s\n", __TIMESTAMP__);
 	auto curtime = time(0);
 	auto gmtm = gmtime(&curtime);
-	printfdbg("Current time: %s\n", asctime(gmtm));
+	printfdbg("Current time: %s\n", asctime(gmtm)); 
+	printfdbg("Project is free: https://github.com/0TheSpy/ClientMod3Emulator\n"); 
 
 	SigScan scan;
 
