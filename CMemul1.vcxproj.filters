@@ -99,11 +99,11 @@
     <ClCompile Include="zlib-1.2.13\zutil.c">
       <Filter>Header Files\Public\zlib</Filter>
     </ClCompile>
+    <ClCompile Include="hash.cpp">
+      <Filter>Header Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="tier0.dll">
-      <Filter>Source Files</Filter>
-    </None>
     <None Include="zlib-1.2.13\ChangeLog">
       <Filter>Header Files\Public\zlib</Filter>
     </None>
@@ -246,6 +246,12 @@
     </ClInclude>
     <ClInclude Include="zlib-1.2.13\zutil.h">
       <Filter>Header Files\Public\zlib</Filter>
+    </ClInclude>
+    <ClInclude Include="defs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="hash.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -76,7 +76,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>hl2sdk\public;hl2sdk\common;hl2sdk\public\tier0;hl2sdk\public\tier1;hl2sdk\tier0;hl2sdk\tier1;hl2sdk\vgui2\vgui_controls;hl2sdk\game\shared;hl2sdk\game\client\hl2;hl2sdk\game\shared\hl2mp;hl2sdk\game\client;hl2sdk\public\mathlib;K:\Cheats\my CM3 cheats\CMemul2\zlib-1.2.13;$(IncludePath)</IncludePath>
+    <IncludePath>hl2sdk\public;hl2sdk\common;hl2sdk\public\tier0;hl2sdk\public\tier1;hl2sdk\tier0;hl2sdk\tier1;hl2sdk\vgui2\vgui_controls;hl2sdk\game\shared;hl2sdk\game\client\hl2;hl2sdk\game\shared\hl2mp;hl2sdk\game\client;hl2sdk\public\mathlib;zlib-1.2.13;$(IncludePath)</IncludePath>
     <LibraryPath>hl2sdk\;hl2sdk\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -112,6 +112,8 @@
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <AdditionalOptions>
       </AdditionalOptions>
+      <AdditionalIncludeDirectories>
+      </AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -158,6 +160,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
+    <ClCompile Include="hash.cpp" />
     <ClCompile Include="Public\Encryption\CRijndael.cpp" />
     <ClCompile Include="Public\Encryption\DoubleBuffering.cpp" />
     <ClCompile Include="Public\Encryption\MessageDigest.cpp" />
@@ -182,7 +185,6 @@
     <ClCompile Include="zlib-1.2.13\zutil.c" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="tier0.dll" />
     <None Include="zlib-1.2.13\ChangeLog" />
     <None Include="zlib-1.2.13\configure" />
     <None Include="zlib-1.2.13\FAQ" />
@@ -202,6 +204,7 @@
     <None Include="zlib-1.2.13\zlib2ansi" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="defs.h" />
     <ClInclude Include="Emulators\AVSMP.h" />
     <ClInclude Include="Emulators\OldRevEmu.h" />
     <ClInclude Include="Emulators\RevEmu.h" />
@@ -210,6 +213,7 @@
     <ClInclude Include="Emulators\Setti.h" />
     <ClInclude Include="Emulators\SmartSteamEmu.h" />
     <ClInclude Include="Emulators\SteamEmu.h" />
+    <ClInclude Include="hash.h" />
     <ClInclude Include="hl2sdk-sdk2013\common\gameui\iGameConsole.h" />
     <ClInclude Include="Public\Encryption\CRijndael.h" />
     <ClInclude Include="Public\Encryption\DoubleBuffering.h" />
