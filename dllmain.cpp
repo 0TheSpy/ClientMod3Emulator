@@ -1241,7 +1241,7 @@ void __fastcall hkDownloadManager_Queue(DWORD* this_, void* unk, char* baseURL, 
 {
 	if (!strcmp(g_pCVar->FindVar("cl_downloadfilter")->GetString(), "mapsonly") && strcmp(PathFindExtensionA(gamePath), ".bsp"))
 		return;
-	printfdbg("Downloading %s from %s\n", baseURL, gamePath);
+	printfdbg("Downloading %s from %s\n", gamePath, baseURL);
 	static pDownloadManager_Queue DownloadManager_Queue = (pDownloadManager_Queue)dwDownloadManager_Queue;
 	return DownloadManager_Queue(this_, baseURL, gamePath);
 }
