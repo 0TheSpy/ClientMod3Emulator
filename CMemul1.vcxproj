@@ -76,7 +76,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>hl2sdk\public;hl2sdk\common;hl2sdk\public\tier0;hl2sdk\public\tier1;hl2sdk\tier0;hl2sdk\tier1;hl2sdk\vgui2\vgui_controls;hl2sdk\game\shared;hl2sdk\game\client\hl2;hl2sdk\game\shared\hl2mp;hl2sdk\game\client;hl2sdk\public\mathlib;zlib-1.2.13;$(IncludePath)</IncludePath>
+    <IncludePath>hl2sdk\public;hl2sdk\common;hl2sdk\public\tier0;hl2sdk\public\tier1;hl2sdk\tier0;hl2sdk\tier1;hl2sdk\vgui2\vgui_controls;hl2sdk\game\shared;hl2sdk\game\client\hl2;hl2sdk\game\shared\hl2mp;hl2sdk\game\client;hl2sdk\public\mathlib;C:\ssd\boost_1_82_0\;$(IncludePath)</IncludePath>
     <LibraryPath>hl2sdk\;hl2sdk\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -102,7 +102,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
@@ -112,8 +112,7 @@
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <AdditionalOptions>
       </AdditionalOptions>
-      <AdditionalIncludeDirectories>
-      </AdditionalIncludeDirectories>
+      <Optimization>Disabled</Optimization>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
