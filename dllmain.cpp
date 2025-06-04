@@ -2,28 +2,21 @@
 #define _CRT_SECURE_NO_WARNINGS
 #define DEBUG   
 #define DISCMSG
-//#define TIMEDACCESS  
+//#define TIMEDACCESS 
 
 #include <Windows.h>
-#include <iostream>     
-  
-//#define HWID
-#ifdef HWID
-//#define targethwid 0x1a4aa54a5e893edd^0x9637d75f0f176070
-#define targethwid 0xd954ee9975a8138d^0xe26e8e1e53070b38
-#include <boost/multiprecision/cpp_int.hpp>
-#endif  
+#include <iostream>  
 
 bool srcds = false; bool textmode = false;
 int (WINAPIV* __vsnprintf)(char*, size_t, const char*, va_list) = _vsnprintf;
 
 #include <inetmessage.h>
 #include <inetchannelinfo.h>
-#include <inetmsghandler.h>  
-#include <utlvector.h>
-#include <inetchannel.h>  
-//#include <cdll_int.h> 
-class IVEngineClient;  
+#include <inetmsghandler.h>
+#include <utlvector.h> 
+#include <inetchannel.h>
+//#include <cdll_int.h>
+class IVEngineClient;
 #include <memory>
 #include <string> 
 #include <checksum_crc.h>
@@ -54,22 +47,22 @@ class IVEngineClient;
 
 using namespace std;
 
-#include <fstream> 
+#include <fstream>
 ofstream logfile;
 #ifdef DEBUG
 #include <iomanip>
 //#define printfdbg printf
 void printfdbg(const char* format, ...)
 {
-	va_list arglist;  
+	va_list arglist;
 	auto time = std::time(nullptr);
-	std::cout << std::put_time(std::localtime(&time), "[%H:%M:%S] "); 
+	std::cout << std::put_time(std::localtime(&time), "[%H:%M:%S] ");
 	logfile << std::put_time(std::localtime(&time), "[%H:%M:%S] ");
 	va_start(arglist, format);
 	//vprintf(format, arglist); 
 	char logstring[1024];
 	vsprintf(logstring, format, arglist);
-	va_end(arglist);  
+	va_end(arglist);
 	printf(logstring);
 	logfile << logstring;
 }
@@ -90,242 +83,6 @@ void* CUserMessages = nullptr;
 #include <time.h>
 
 #include <igameevents.h>
-
-#ifdef HWID
-#pragma comment(lib, "wbemuuid.lib")
-#include <Wbemidl.h>
-#include <oleauto.h>
-std::wstring GetWMIProperty(const wchar_t* className, const wchar_t* propertyName) {
-	HRESULT hres;
-	IWbemLocator* pLoc = NULL;
-	IWbemServices* pSvc = NULL;
-	IEnumWbemClassObject* pEnumerator = NULL;
-	std::wstring result;
-	std::wstring query;
-	bool initialized = true;
-	IWbemClassObject* pclsObj = NULL;
-	ULONG uReturn = 0;
-	hres = CoInitializeEx(0, COINIT_MULTITHREADED);
-	if (FAILED(hres)) {
-		initialized = false;
-
-		if (hres != RPC_E_CHANGED_MODE)
-			goto cleanup;
-	}
-	else {
-		hres = CoInitializeSecurity(
-			NULL,
-			-1,                          // COM authentication
-			NULL,                        // Authentication services
-			NULL,                        // Reserved
-			RPC_C_AUTHN_LEVEL_DEFAULT,   // Default authentication 
-			RPC_C_IMP_LEVEL_IMPERSONATE, // Default Impersonation  
-			NULL,                        // Authentication info
-			EOAC_NONE,                   // Additional capabilities 
-			NULL                         // Reserved
-		);
-
-		if (FAILED(hres) && hres != RPC_E_TOO_LATE) {
-			goto cleanup;
-		}
-	}
-
-	hres = CoCreateInstance(
-		CLSID_WbemLocator,
-		0,
-		CLSCTX_INPROC_SERVER,
-		IID_IWbemLocator, (LPVOID*)&pLoc);
-
-	if (FAILED(hres)) {
-		goto cleanup;
-	}
-
-	hres = pLoc->ConnectServer(
-		BSTR(L"ROOT\\CIMV2"),  // Object path of WMI namespace
-		NULL,                    // User name. NULL = current user
-		NULL,                    // User password. NULL = current
-		0,                       // Locale. NULL indicates current
-		NULL,                    // Security flags.
-		0,                       // Authority (for example, Kerberos)
-		0,                       // Context object 
-		&pSvc                    // pointer to IWbemServices proxy
-	);
-
-	if (FAILED(hres)) {
-		goto cleanup;
-	}
-
-	hres = CoSetProxyBlanket(
-		pSvc,                        // Indicates the proxy to set
-		RPC_C_AUTHN_WINNT,           // RPC_C_AUTHN_xxx
-		RPC_C_AUTHZ_NONE,            // RPC_C_AUTHZ_xxx
-		NULL,                        // Server principal name 
-		RPC_C_AUTHN_LEVEL_CALL,      // RPC_C_AUTHN_LEVEL_xxx 
-		RPC_C_IMP_LEVEL_IMPERSONATE, // RPC_C_IMP_LEVEL_xxx
-		NULL,                        // client identity
-		EOAC_NONE                    // proxy capabilities 
-	);
-
-	if (FAILED(hres)) {
-		goto cleanup;
-	}
-
-	query = L"SELECT * FROM " + std::wstring(className);
-
-	hres = pSvc->ExecQuery(
-		BSTR(L"WQL"),
-		BSTR(query.c_str()),
-		WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
-		NULL,
-		&pEnumerator);
-
-	if (FAILED(hres)) {
-		goto cleanup;
-	}
-
-	while (pEnumerator) {
-		HRESULT hr = pEnumerator->Next(WBEM_INFINITE, 1, &pclsObj, &uReturn);
-		if (uReturn == 0) {
-			break;
-		}
-		VARIANT vtProp; VARIANT vtProp2;
-		pclsObj->Get(L"DeviceID", 0, &vtProp2, 0, 0);
-		hr = pclsObj->Get(propertyName, 0, &vtProp, 0, 0);
-		if (SUCCEEDED(hr) && vtProp.vt == VT_BSTR)
-		{
-			if (wcsstr(vtProp2.bstrVal, L"PHYSICALDRIVE0"))
-				result = vtProp.bstrVal;
-		}
-		VariantClear(&vtProp);
-		VariantClear(&vtProp2);
-		pclsObj->Release();
-	}
-
-cleanup:
-
-	if (pSvc)
-		pSvc->Release();
-	if (pLoc)
-		pLoc->Release();
-	if (pEnumerator)
-		pEnumerator->Release();
-	if (initialized)
-		CoUninitialize();
-
-	return result;
-}
-
-#include <Wincrypt.h>
-using namespace boost::multiprecision;
-
-enum HashType
-{
-	HashSha1, HashMd5, HashSha256
-};
-
-#define BUFSIZE 1024
-#define MD5LEN  16
-DWORD CreateHash(const BYTE* filename, size_t sz_of_str, char* output)
-{
-	DWORD dwStatus = 0;
-	BOOL bResult = FALSE;
-	HCRYPTPROV hProv = 0;
-	HCRYPTHASH hHash = 0;
-	BYTE rgbHash[MD5LEN];
-	DWORD cbHash = 0;
-	CHAR rgbDigits[] = "0123456789abcdef";
-
-	// Get handle to the crypto provider
-	if (!CryptAcquireContext(&hProv,
-		NULL,
-		NULL,
-		PROV_RSA_FULL,
-		CRYPT_VERIFYCONTEXT))
-	{
-		dwStatus = GetLastError();
-		//printfdbg(AY_OBFUSCATE("CryptAcquireContext failed: %d\n"), dwStatus);
-		//CloseHandle(hFile); 
-		return dwStatus;
-	}
-
-	if (!CryptCreateHash(hProv, CALG_MD5, 0, 0, &hHash))
-	{
-		dwStatus = GetLastError();
-		//printfdbg(AY_OBFUSCATE("CryptAcquireContext failed: %d\n"), dwStatus);
-		CryptReleaseContext(hProv, 0);
-		return dwStatus;
-	}
-
-	if (!CryptHashData(hHash, filename, sz_of_str, 0))
-	{
-		dwStatus = GetLastError();
-		//printfdbg(AY_OBFUSCATE("CryptHashData failed: %d\n"), dwStatus);
-		CryptReleaseContext(hProv, 0);
-		CryptDestroyHash(hHash);
-		return dwStatus;
-	}
-
-	cbHash = MD5LEN;
-	if (CryptGetHashParam(hHash, HP_HASHVAL, rgbHash, &cbHash, 0))
-	{
-		for (DWORD i = 0; i < cbHash; i++)
-		{
-			sprintf_s((char*)&output[i * 2], 5, "%c%c",
-				rgbDigits[rgbHash[i] >> 4],
-				rgbDigits[rgbHash[i] & 0xf]);
-		}
-
-	}
-	else
-	{
-		dwStatus = GetLastError();
-		//printfdbg(AY_OBFUSCATE("CryptGetHashParam failed: %d\n"), dwStatus);
-	}
-
-	CryptDestroyHash(hHash);
-	CryptReleaseContext(hProv, 0);
-
-	return dwStatus;
-}
-#include <stdio.h>
-#include <string.h>
-#include <inttypes.h>
-#include <ctype.h>
-#include <errno.h>
-uint8_t ascii2hex(char s)
-{
-	uint8_t r = 0xf;
-
-	if ((s >= 48) && (s <= 57))
-		r = s - 48;
-	else if ((s >= 65) && (s <= 70))
-		r = s - 55;
-	else if ((s >= 97) && (s <= 102))
-		r = s - 87;
-	return r;
-}
-uint128_t hex_strtoulll(const char* nptr, int len)
-{
-	int i;
-	uint128_t r = 0, p;
-
-	for (i = len; i >= 0; i--)
-	{
-		p = (uint128_t)ascii2hex(*(nptr + i));
-		p = p << ((len - i) << 2);
-		r |= p;
-	}
-	return r;
-}
-int printf_uint128_t(uint128_t x)
-{
-	printf("HIGH %016llx\n", (uint64_t)(x >> 64));
-	printf("LOW  %016llx\n", (uint64_t)x);
-	printf("XOR %016llx\n", (uint64_t)(x >> 64) ^ (uint64_t)x);
-	return printf("%016" PRIx64 "%016" PRIx64 "\n", (uint64_t)(x >> 64), (uint64_t)x);
-}
-#define UINT128(hi, lo) (((uint128_t) (hi)) << 64 | (lo))
-#endif
 
 //#define TIMEDACCESS 
 #ifdef TIMEDACCESS
@@ -394,24 +151,11 @@ std::uniform_int_distribution<uint32_t> friendsID(0xD000000, 0xDD00000);
 typedef bool(__thiscall* PrepareSteamConnectResponseFn)(void*, int, const char*, uint64, bool, const netadr_t&, bf_write&);
 bool __fastcall Hooked_PrepareSteamConnectResponse(DWORD* ecx, void* edx, int keySize, const char* encryptionKey, uint64 unGSSteamID, bool bGSSecure, const netadr_t& adr, bf_write& msg)
 {
-#ifdef HWID
-	auto mbModel = GetWMIProperty(L"Win32_DiskDrive", L"SerialNumber");
-	char output[255];
-	CreateHash((const BYTE*)mbModel.c_str(), mbModel.length(), (char*)&output);
-	uint128_t output_converted = hex_strtoulll(output, MD5LEN * 2 - 1);
-	auto xored = (uint64_t)(output_converted >> 64) ^ (uint64_t)output_converted;
-
-	if ((xored != (targethwid)) && xored != (0x1a4aa54a5e893edd ^ 0x9637d75f0f176070))
-	{
-		memcpy(0, &xored, 0x100);
-	}
-#endif
-
 	printfdbg("PrepareSteamConnectResponse called\n");
 
 	static PrepareSteamConnectResponseFn PrepareSteamConnectResponse = (PrepareSteamConnectResponseFn)dwPrepareSteamConnectResponse;
-	
-	 
+
+
 	srand(time(NULL));
 	unsigned int steamid = 0;
 	if (g_pCVar->FindVar("cm_steamid_random")->GetInt())
@@ -419,7 +163,7 @@ bool __fastcall Hooked_PrepareSteamConnectResponse(DWORD* ecx, void* edx, int ke
 	else
 		steamid = g_pCVar->FindVar("cm_steamid")->GetInt();
 
-	msg.WriteShort(0x98); 
+	msg.WriteShort(0x98);
 	msg.WriteLong('S');
 
 	char hwid[64];
@@ -481,7 +225,7 @@ bool __fastcall Hooked_PrepareSteamConnectResponse(DWORD* ecx, void* edx, int ke
 		0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 	};
 	msg.WriteBytes(staticEnd, sizeof(staticEnd));
-	
+
 	//hexDump(0, msg.m_pData, msg.GetNumBytesWritten()); 
 	return true;
 }
@@ -719,7 +463,7 @@ cvarMsg->m_ConVars.AddToTail(acvar);
 
 //https://github.com/VSES/SourceEngine2007/blob/master/src_main/engine/host.cpp
 void Hooked_BuildConVarUpdateMessage(NET_SetConVar* cvarMsg, int flags, bool nonDefault)
-{ 
+{
 	printfdbg("Hooked_BuildConVarUpdateMessage called\n");
 
 	static BuildConVarUpdateMessageFn BuildConVarUpdateMessage = (BuildConVarUpdateMessageFn)dwBuildConVarUpdateMessage;
@@ -756,10 +500,10 @@ void Hooked_BuildConVarUpdateMessage(NET_SetConVar* cvarMsg, int flags, bool non
 		AddtoTail("cl_autobuy");
 		AddtoTail("cl_interp_ratio");
 		AddtoTail("closecaption");
-		AddtoTailWithVal("voice_loopback","0");
+		AddtoTailWithVal("voice_loopback", "0");
 		AddtoTail("cl_autowepswitch");
 	}
-	 
+
 	for (int i = 0; i < cvarMsg->m_ConVars.Size(); i++) {
 		printfdbg("%d %s : %s\n", i, cvarMsg->m_ConVars[i].name, cvarMsg->m_ConVars[i].value);
 	}
@@ -1001,7 +745,7 @@ void ReturnCvarValue(INetChannel* pThis, EQueryCvarValueStatus status, QueryCvar
 }
 
 #define RespondCvarValue(name, value, status) \
-if (!strcmp((char*)((DWORD)netmsg + 24), name)) \
+if (!stricmp((char*)((DWORD)netmsg + 24), name)) \
 {\
 ReturnCvarValue(pThis, status, msgmsg->m_iCookie, name, value);\
 continue;\
@@ -1175,7 +919,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				RespondCvarValue("cm_enabled", "", eQueryCvarValueStatus_CvarNotFound);
 				RespondCvarValue("cm_forcemap", "", eQueryCvarValueStatus_CvarNotFound);
 				RespondCvarValue("cm_drawspray", "", eQueryCvarValueStatus_CvarNotFound);
-				RespondCvarValue("cm_fakeconnect", "", eQueryCvarValueStatus_CvarNotFound); 
+				RespondCvarValue("cm_fakeconnect", "", eQueryCvarValueStatus_CvarNotFound);
 				RespondCvarValue("cm_log", "", eQueryCvarValueStatus_CvarNotFound);
 				RespondCvarValue("se_lkblox", "0", eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("se_autobunnyhopping", "0", eQueryCvarValueStatus_ValueIntact);
@@ -1192,10 +936,11 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 				RespondCvarValue("mat_colcorrection_disableentities", "0", eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("se_doubleduck", "0", eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("se_nowinpanel", "1", eQueryCvarValueStatus_ValueIntact);
+				RespondCvarValue("se_newsmoke", "14", eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("e_showserverinfo", "0", eQueryCvarValueStatus_ValueIntact);
 
 				RespondCvarValue("async_toggle_priority", "", eQueryCvarValueStatus_CvarNotFound);
-				RespondCvarValue("_client_version", "3.0.0.9135", eQueryCvarValueStatus_ValueIntact);
+				RespondCvarValue("_client_version", (char*)g_pCVar->FindVar("cm_version")->GetString(), eQueryCvarValueStatus_ValueIntact);
 				RespondCvarValue("~clientmod", "2.0", eQueryCvarValueStatus_ValueIntact);
 
 				RespondCvarValue("net_blockmsg", "none", eQueryCvarValueStatus_ValueIntact);
@@ -1385,7 +1130,6 @@ void GenerateFriendsName(char* friendsName, size_t uMaxLength)
 	snprintf(friendsName, uMaxLength, "%16llX", finalHash);
 }
 
-
 DWORD dwSendNetMsg;
 typedef bool(__thiscall* pSendNetMsg)(INetChannel* pNetChan, INetMessage& msg, bool bVoice);
 bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg, bool bVoice)
@@ -1405,7 +1149,7 @@ bool __fastcall hkSendNetMsg(INetChannel* this_, void* edx, INetMessage& msg, bo
 					"jointeam; +voicerecord");
 			}
 
-			if (m_nSignonState == g_pCVar->FindVar("cm_fakeconnect")->GetInt() + 1) //2-5
+			if (m_nSignonState == g_pCVar->FindVar("cm_fakeconnect")->GetInt() + 1) //2-6
 			{
 				auto clientport = g_pCVar->FindVar("clientport");
 				clientport->SetValue(clientport->GetInt() + 1);
@@ -1564,34 +1308,34 @@ bool __fastcall hkSetStringUserData(DWORD** this_, void* unk, char* userdata, in
 
 
 DWORD dwCvarSetValue = 0;
- 
+
 typedef short(__thiscall* pCvarSetValue)(ConVar* this_, char* String);
 short __fastcall hkCvarSetValue(ConVar* this_, void* unk, char* String1)
-{ 
+{
 	if (V_stricmp(this_->GetName(), "cm_log") == 0)
 	{
-		int newlog = -1; 
+		int newlog = -1;
 		if (V_stricmp(String1, "0") == 0)
 			newlog = 0;
 		else if (V_stricmp(String1, "1") == 0)
 			newlog = 1;
-		
+
 		if (newlog != -1 && newlog != g_pCVar->FindVar("cm_log")->GetInt())
 		{
 			//changed
-			g_pCVar->FindVar("cm_log")->SetValue(newlog); 
+			g_pCVar->FindVar("cm_log")->SetValue(newlog);
 			if (newlog == 1)
 			{
 				//createNewLogFile
-				char logname[MAX_PATH]; 
+				char logname[MAX_PATH];
 				auto time = std::time(nullptr);
 				std::tm* tm = std::localtime(&time);
 				char timebuffer[26];
-				std::strftime(timebuffer, sizeof(timebuffer), "%Y-%m-%d_%H-%M-%S", tm); 
-				sprintf(logname, "SpyLog_%s.txt", timebuffer);  
+				std::strftime(timebuffer, sizeof(timebuffer), "%Y-%m-%d_%H-%M-%S", tm);
+				sprintf(logname, "SpyLog_%s.txt", timebuffer);
 				printfdbg("Log name: %s\n", logname);
-				logfile.open(logname, std::ofstream::out | std::ofstream::app); 
-				if (!logfile) { 
+				logfile.open(logname, std::ofstream::out | std::ofstream::app);
+				if (!logfile) {
 					cout << "Failed to open\n";
 				}
 			}
@@ -1600,16 +1344,95 @@ short __fastcall hkCvarSetValue(ConVar* this_, void* unk, char* String1)
 			{
 				//saveLogFile ;
 				printfdbg("Saved log\n");
-				logfile.close();  
+				logfile.close();
 			}
 		}
 	}
 
 	static pCvarSetValue CvarSetValue = (pCvarSetValue)dwCvarSetValue;
 	auto ret = CvarSetValue(this_, String1);
-	  
-	return ret; 
+
+	return ret;
 }
+
+
+DWORD dwReadSubChannelData = 0;
+#define FRAGMENT_BITS		8
+#define FRAGMENT_SIZE		(1<<FRAGMENT_BITS)
+#define MAX_FILE_SIZE		((1<<MAX_FILE_SIZE_BITS)-1)	// maximum transferable size is	64MB
+#define MAX_FILE_SIZE_BITS 26
+#define NET_MAX_PALYLOAD_BITS 17
+#define MAX_STREAMS 2
+typedef char(__thiscall* pReadSubChannelData)(void* this_, bf_read& buf, int stream);
+char __fastcall hkReadSubChannelData(void* this_, void* edx, bf_read& buf, int stream)
+{
+	auto buf_copy = buf;
+	bool bSingleBlock = buf.ReadOneBit() == 0; // is single block ? 
+	unsigned int startFragment = 0;
+	unsigned int numFragments = 0;
+	unsigned int offset = 0;
+	unsigned int length = 0;
+	unsigned int nUncompressedSize = 0;
+	unsigned int max_payload_bits = 0;
+	unsigned int isFile = 0;
+	unsigned int transferID = 0;
+	char filename[MAX_OSPATH] = "";
+	bool compressed = 0;
+	unsigned int bytes = 0;
+
+	if (!bSingleBlock)
+	{
+		startFragment = buf.ReadUBitLong(MAX_FILE_SIZE_BITS - FRAGMENT_BITS); // 16 MB max
+		numFragments = buf.ReadUBitLong(3);  // 8 fragments per packet max
+		offset = startFragment * FRAGMENT_SIZE;
+		length = numFragments * FRAGMENT_SIZE;
+	}
+
+	if (offset == 0) // first fragment, read header info
+	{
+		auto max_payload_bits = buf.ReadUBitLong(NET_MAX_PALYLOAD_BITS);
+		if (bSingleBlock)
+		{
+			// data compressed ?
+			compressed = buf.ReadOneBit();
+			if (compressed)
+			{
+				nUncompressedSize = buf.ReadUBitLong(MAX_FILE_SIZE_BITS);
+			}
+			max_payload_bits = buf.ReadUBitLong(NET_MAX_PALYLOAD_BITS);
+		}
+		else
+		{
+			isFile = buf.ReadOneBit();
+			if (isFile) // is it a file ?
+			{
+				transferID = buf.ReadUBitLong(32);
+				buf.ReadString(filename, MAX_OSPATH);
+			}
+			// data compressed ?
+			compressed = buf.ReadOneBit();
+			if (compressed)
+			{
+				nUncompressedSize = buf.ReadUBitLong(MAX_FILE_SIZE_BITS);
+			}
+			bytes = buf.ReadUBitLong(MAX_FILE_SIZE_BITS);
+		}
+		char* buffer = new char[length];
+		buf.ReadBytes(buffer, length); // read data
+		delete buffer;
+	}
+
+	printfdbg("ReadSubChannelData stream %d bSingleBlock %d offset %d length %d compressed %d isFile %d nUncompressedSize %d\n",
+		stream, bSingleBlock, offset, length, compressed, isFile, nUncompressedSize);
+
+	if (nUncompressedSize) return false;
+
+	buf = buf_copy;
+	static pReadSubChannelData ReadSubChannelData = (pReadSubChannelData)dwReadSubChannelData;
+	auto ret = ReadSubChannelData(this_, buf, stream);
+	return ret;
+}
+
 
 void ConsoleInputThread(HMODULE hModule)
 {
@@ -1644,20 +1467,21 @@ DWORD WINAPI HackThread(HMODULE hModule)
 	timer = compiletime + duration - curtime;
 	mStartedTime = chrono::system_clock::now();
 #endif
-	 
+
 	printfdbg(XorStr("ClientMod 3 Emulator\nOriginal code: InFro, updated by Spy\nCredits to cssandroid & atryrkakiv\n"));
 	printfdbg("Compile time %s\n", __TIMESTAMP__);
-	auto curtime = time(0);
-	auto gmtm = gmtime(&curtime);
-	printfdbg("Current time: %s\n", asctime(gmtm));
-	 
+	//auto curtime = time(0);
+	//auto gmtm = gmtime(&curtime);
+	//printfdbg("Current time: %s\n", asctime(gmtm)); 
+	printfdbg("Project is free: https://github.com/0TheSpy/ClientMod3Emulator\n"); 
+
 	SigScan scan;
 
 	g_GameEventManager = (CGameEventManager*)GetInterface("engine.dll", "GAMEEVENTSMANAGER002");
 
 	g_pEngineClient = (IVEngineClient*)GetInterface("engine.dll", "VEngineClient012");
 
-	if (!srcds) { 
+	if (!srcds) {
 		DWORD dwEngine = (DWORD)GetModuleHandleA("engine.dll");
 
 		IGameConsole* g_pGameConsole = (IGameConsole*)GetInterface(XorStr("gameui.dll"), XorStr("GameConsole003"));
@@ -1670,16 +1494,18 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		g_pGameConsole->ColorPrintf(clr2, "cssandroid ");
 		g_pGameConsole->ColorPrintf(clr1, "and ");
 		g_pGameConsole->ColorPrintf(clr2, "atryrkakiv\n");
-		g_pGameConsole->ColorPrintf(clr1, "Compile time: "); 
+		g_pGameConsole->ColorPrintf(clr1, "Compile time: ");
 		g_pGameConsole->ColorPrintf(clr2, __TIMESTAMP__);
-		g_pGameConsole->ColorPrintf(clr1, "\nCurrent time: ");
-		g_pGameConsole->ColorPrintf(clr2, asctime(gmtm));
+		//g_pGameConsole->ColorPrintf(clr1, "\nCurrent time: ");
+		//g_pGameConsole->ColorPrintf(clr2, asctime(gmtm));
+		g_pGameConsole->ColorPrintf(clr1, "\nProject is free: ");
+		g_pGameConsole->ColorPrintf(clr2, "https://github.com/0TheSpy/ClientMod3Emulator\n");
 
 		g_pCVar = ((ICvar * (*)(void))GetProcAddress(GetModuleHandleA("vstdlib.dll"), "GetCVarIF"))();
 		printfdbg("g_pCVar %x\n", g_pCVar);
 
 		CallVFunction<IVEngineClient* (__thiscall*)(void*, char*)>(g_pEngineClient, 97)(g_pEngineClient, //g_pEngineClient->ExecuteClientCmd
-			"setinfo cm_steamid 1337; setinfo cm_steamid_random 1; setinfo cm_enabled 1; setinfo cm_version \"3.0.0.9135\"; setinfo cm_drawspray 0; setinfo cm_forcemap \"\"; setinfo cm_fakeconnect 0; setinfo cm_log 0");
+			"setinfo cm_steamid 1337; setinfo cm_steamid_random 1; setinfo cm_enabled 1; setinfo cm_version \"3.0.0.9135\"; setinfo cm_drawspray 1; setinfo cm_forcemap \"\"; setinfo cm_fakeconnect 0; setinfo cm_log 0");
 
 		//FCVAR_PROTECTED 
 		g_pCVar->FindVar("cm_steamid")->m_nFlags = 537001984;
@@ -1694,7 +1520,7 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		g_pCVar->FindVar("cm_log")->m_nFlags = 537001984;
 		g_pCVar->FindVar("cm_fakeconnect")->m_pszHelpString = "Drop connection at signon state: (1 = CONNECTED, 2 = NEW, 3 = PRESPAWN, 4 = SPAWN, 5 = FULL).";
 
-		dwCvarSetValue = scan.FindPattern(XorStr("engine.dll"), XorStr("\x83\xec\xae\xa1\xae\xae\xae\xae\x33\xc4\x56\x89\x44\x24"), XorStr("xx?x????xxxxxx")); 
+		dwCvarSetValue = scan.FindPattern(XorStr("engine.dll"), XorStr("\x83\xec\xae\xa1\xae\xae\xae\xae\x33\xc4\x56\x89\x44\x24"), XorStr("xx?x????xxxxxx"));
 
 		dwPrepareSteamConnectResponse = scan.FindPattern(XorStr("engine.dll"), XorStr("\x81\xEC\x00\x00\x00\x00\x56\x8B\xF1\x8B\x0D\x00\x00\x00\x00\x8B\x01\xFF\x50\x24"), XorStr("xx????xxxxx????xxxxx")); //engine.dll+5D50
 		dwBuildConVarUpdateMessage = scan.FindPattern(XorStr("engine.dll"), XorStr("\xE8\x00\x00\x00\x00\x8D\x54\x24\x3C"), XorStr("x????xxxx"));
@@ -1753,19 +1579,21 @@ DWORD WINAPI HackThread(HMODULE hModule)
 	}
 
 	char* cmdline = GetCommandLineA();
-	if (_tcsstr(cmdline, _T("-textmode")) != NULL) { 
+	if (_tcsstr(cmdline, _T("-textmode")) != NULL) {
 		textmode = true;
 		CallVFunction<IVEngineClient* (__thiscall*)(void*, char*)>(g_pEngineClient, 97)(g_pEngineClient, //g_pEngineClient->ExecuteClientCmd
 			"voice_inputfromfile 1");
-		 
+
 		freopen_s(&f, "CONIN$", "r", stdin);
 		printfdbg("hl2 launched with -textmode\n");
 		CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)ConsoleInputThread, hModule, 0, nullptr);
 	}
 
 	dwProcessMessages = scan.FindPattern(XorStr("engine.dll"), XorStr("\x83\xEC\x2C\x53\x55\x89\x4C\x24\x10"), XorStr("xxxxxxxxx"));
-
 	printfdbg("dwPrepareSteamConnectResponse %x\n", dwPrepareSteamConnectResponse);
+
+	dwReadSubChannelData = scan.FindPattern(XorStr("engine.dll"), XorStr("\x83\xec\xae\x8b\x44\x24\xae\x53\x8d\x14\x80"), XorStr("xx?xxx?xxxx"));
+	printfdbg("dwReadSubChannelData %x\n", dwReadSubChannelData);
 
 	DWORD dwWriteListenEventList;
 	if (!srcds) {
@@ -1784,9 +1612,9 @@ DWORD WINAPI HackThread(HMODULE hModule)
 	printfdbg("CUserMessages_ %x\n", CUserMessages);
 	dwDispatchUserMessage = scan.FindPattern(XorStr(client_dll), XorStr("\x8b\x44\x24\xae\x83\xec\xae\x85\xc0\x0f\x8c"), XorStr("xxx?xx?xxxx"));
 	printfdbg("dwDispatchUserMessage %x\n", dwDispatchUserMessage);
-	 
-	dwGetUserMessageName = scan.FindPattern(XorStr(client_dll), 
-		XorStr("\x56\x8b\x74\x24\xae\x85\xf6\x57\x8b\xf9\x7c\xae\x3b\x77\xae\x7c\xae\x56\x68\xae\xae\xae\xae\xff\x15\xae\xae\xae\xae\x83\xc4\xae\x8b\x4f\xae\x8d\x04\x76\x8b\x44\xc1"), 
+
+	dwGetUserMessageName = scan.FindPattern(XorStr(client_dll),
+		XorStr("\x56\x8b\x74\x24\xae\x85\xf6\x57\x8b\xf9\x7c\xae\x3b\x77\xae\x7c\xae\x56\x68\xae\xae\xae\xae\xff\x15\xae\xae\xae\xae\x83\xc4\xae\x8b\x4f\xae\x8d\x04\x76\x8b\x44\xc1"),
 		XorStr("xxxx?xxxxxx?xx?x?xx????xx????xx?xx?xxxxxx"));
 	printfdbg("dwGetUserMessageName %x\n", dwGetUserMessageName);
 
@@ -1813,11 +1641,12 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		DetourAttach(&(LPVOID&)(dwSVC_ServerInfo_ReadFromBuffer), (PBYTE)hkSVC_ServerInfo_ReadFromBuffer);
 		DetourAttach(&(LPVOID&)(dwSetStringUserData), (PBYTE)hkSetStringUserData);
 
-		DetourAttach(&(LPVOID&)(dwCvarSetValue), (PBYTE)hkCvarSetValue); 
+		DetourAttach(&(LPVOID&)(dwCvarSetValue), (PBYTE)hkCvarSetValue);
 	}
 
 	DetourAttach(&(LPVOID&)dwProcessMessages, &Hooked_ProcessMessages);
 	DetourAttach(&(LPVOID&)(dwSendNetMsg), (PBYTE)hkSendNetMsg);
+	//DetourAttach(&(LPVOID&)(dwReadSubChannelData), (PBYTE)hkReadSubChannelData);
 
 	DetourTransactionCommit();
 
@@ -1840,8 +1669,6 @@ DWORD WINAPI HackThread(HMODULE hModule)
 	}
 #endif
 
-	bool retried = 0;
-
 	while (true)
 	{
 		if (!srcds && GetAsyncKeyState(VK_DELETE))
@@ -1850,7 +1677,7 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		if (srcds && GetAsyncKeyState(VK_END))
 			break;
 
-#ifdef TIMEDACCESS 
+#ifdef TIMEDACCESS
 		if (!CheckTime())
 		{
 			printfdbg(XorStr("Error: Time expired\n"));
@@ -1882,10 +1709,11 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		DetourDetach(&(LPVOID&)(dwSVC_ServerInfo_ReadFromBuffer), reinterpret_cast<BYTE*>(hkSVC_ServerInfo_ReadFromBuffer));
 		DetourDetach(&(LPVOID&)(dwSetStringUserData), reinterpret_cast<BYTE*>(hkSetStringUserData));
 
-		DetourDetach(&(LPVOID&)(dwCvarSetValue), reinterpret_cast<BYTE*>(hkCvarSetValue)); 
+		DetourDetach(&(LPVOID&)(dwCvarSetValue), reinterpret_cast<BYTE*>(hkCvarSetValue));
 	}
 	DetourDetach(&(LPVOID&)dwProcessMessages, reinterpret_cast<BYTE*>(Hooked_ProcessMessages));
 	DetourDetach(&(LPVOID&)(dwSendNetMsg), reinterpret_cast<BYTE*>(hkSendNetMsg));
+	//DetourDetach(&(LPVOID&)(dwReadSubChannelData), reinterpret_cast<BYTE*>(hkReadSubChannelData)); 
 
 	DetourTransactionCommit();
 
