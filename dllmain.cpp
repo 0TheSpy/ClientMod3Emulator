@@ -1223,8 +1223,25 @@ bool __fastcall hkDispatchUserMessage(DWORD* this_, void* edx, int msg_type, bf_
 			char name[1024];
 			msg_data.ReadString(name, sizeof(name));
 			printfdbg("svc_UserMessage: %s (%d): %s\n", ((char* (__thiscall*)(void*, int))dwGetUserMessageName)(this_, msg_type), msg_type, name);
+			
 			if (!strcmp(name, XorStr("info")))
-				return true;
+			{
+				msg_data.ReadByte(); msg_data.ReadByte();
+				char title[1024]; char content[1024];
+				memset(title, 0, sizeof(title)); memset(content, 0, sizeof(content));
+
+				msg_data.ReadString(title, sizeof(title));
+				while (title[0])
+				{
+					msg_data.ReadString(content, sizeof(content));
+					printfdbg("%s: %s\n", title, content);
+					memset(title, 0, sizeof(title)); memset(content, 0, sizeof(content));
+					msg_data.ReadString(title, sizeof(title));
+				}
+	 
+			return true;
+			}	
+			
 			msg_data = backup;
 		}
 		else
