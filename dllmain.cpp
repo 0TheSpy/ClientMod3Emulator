@@ -168,7 +168,7 @@ bool __fastcall Hooked_PrepareSteamConnectResponse(DWORD* ecx, void* edx, int ke
 
 	char hwid[64];
 
-	CreateRandomString(hwid, 32);
+	generateRandomHWID(hwid); //CreateRandomString(hwid, 32);
 	if (!RevSpoofer::Spoof(hwid, steamid)) {
 		printfdbg("RevSpoofer::Spoof ERROR\n");
 		CallVFunction<IVEngineClient* (__thiscall*)(void*, char*)>(g_pEngineClient, 97)(g_pEngineClient, "retry");
