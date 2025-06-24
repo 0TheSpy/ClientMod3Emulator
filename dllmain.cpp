@@ -154,7 +154,8 @@ bool __fastcall Hooked_PrepareSteamConnectResponse(DWORD* ecx, void* edx, int ke
 	printfdbg("PrepareSteamConnectResponse called\n");
 
 	static PrepareSteamConnectResponseFn PrepareSteamConnectResponse = (PrepareSteamConnectResponseFn)dwPrepareSteamConnectResponse;
-
+	if (!g_pCVar->FindVar("cm_steamid_enabled")->GetInt())
+		PrepareSteamConnectResponse(ecx, keySize, encryptionKey, unGSSteamID, bGSSecure, adr, msg);
 
 	srand(time(NULL));
 	unsigned int steamid = 0;
@@ -165,10 +166,10 @@ bool __fastcall Hooked_PrepareSteamConnectResponse(DWORD* ecx, void* edx, int ke
 
 	msg.WriteShort(0x98);
 	msg.WriteLong('S');
+	 
+	char hwid[64] = "                W -DMWTA01632249";
+	//generateRandomHWID(hwid); //CreateRandomString(hwid, 32);
 
-	char hwid[64];
-
-	generateRandomHWID(hwid); //CreateRandomString(hwid, 32);
 	if (!RevSpoofer::Spoof(hwid, steamid)) {
 		printfdbg("RevSpoofer::Spoof ERROR\n");
 		CallVFunction<IVEngineClient* (__thiscall*)(void*, char*)>(g_pEngineClient, 97)(g_pEngineClient, "retry");
@@ -915,6 +916,7 @@ bool __fastcall Hooked_ProcessMessages(INetChannel* pThis, void* edx, bf_read& b
 
 				RespondCvarValue("cm_steamid", "", eQueryCvarValueStatus_CvarNotFound);
 				RespondCvarValue("cm_steamid_random", "", eQueryCvarValueStatus_CvarNotFound);
+				RespondCvarValue("cm_steamid_enabled", "", eQueryCvarValueStatus_CvarNotFound); 
 				RespondCvarValue("cm_version", "", eQueryCvarValueStatus_CvarNotFound);
 				RespondCvarValue("cm_enabled", "", eQueryCvarValueStatus_CvarNotFound);
 				RespondCvarValue("cm_forcemap", "", eQueryCvarValueStatus_CvarNotFound);
@@ -1505,11 +1507,12 @@ DWORD WINAPI HackThread(HMODULE hModule)
 		printfdbg("g_pCVar %x\n", g_pCVar);
 
 		CallVFunction<IVEngineClient* (__thiscall*)(void*, char*)>(g_pEngineClient, 97)(g_pEngineClient, //g_pEngineClient->ExecuteClientCmd
-			"setinfo cm_steamid 1337; setinfo cm_steamid_random 1; setinfo cm_enabled 1; setinfo cm_version \"3.0.0.9135\"; setinfo cm_drawspray 1; setinfo cm_forcemap \"\"; setinfo cm_fakeconnect 0; setinfo cm_log 0");
+			"setinfo cm_steamid 1337; setinfo cm_steamid_random 1; setinfo cm_steamid_enabled 1; setinfo cm_enabled 1; setinfo cm_version \"3.0.0.9135\"; setinfo cm_drawspray 1; setinfo cm_forcemap \"\"; setinfo cm_fakeconnect 0; setinfo cm_log 0");
 
 		//FCVAR_PROTECTED 
 		g_pCVar->FindVar("cm_steamid")->m_nFlags = 537001984;
 		g_pCVar->FindVar("cm_steamid_random")->m_nFlags = 537001984;
+		g_pCVar->FindVar("cm_steamid_enabled")->m_nFlags = 537001984; 
 		g_pCVar->FindVar("cm_version")->m_nFlags = 537001984;
 		g_pCVar->FindVar("cm_enabled")->m_nFlags = 537001984;
 		g_pCVar->FindVar("cm_drawspray")->m_nFlags = 537001984;
