@@ -167,8 +167,8 @@ bool __fastcall Hooked_PrepareSteamConnectResponse(DWORD* ecx, void* edx, int ke
 	msg.WriteShort(0x98);
 	msg.WriteLong('S');
 	 
-	char hwid[64] = "                W -DMWTA01632249";
-	//generateRandomHWID(hwid); //CreateRandomString(hwid, 32);
+	char hwid[64];
+	generateRandomHWID(hwid); //CreateRandomString(hwid, 32);
 
 	if (!RevSpoofer::Spoof(hwid, steamid)) {
 		printfdbg("RevSpoofer::Spoof ERROR\n");
