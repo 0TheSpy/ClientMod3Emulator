@@ -97,7 +97,17 @@ namespace RevSpoofer
 		return ScanNext(pszDest, i, h);
 	}
 
-	unsigned int Hash(char* pszString)
+
+	unsigned int Hash(char* str) {
+		unsigned int  hash = 0x4E67C6A7;
+		for (const char* pch = str; *pch != '\0'; pch++) {
+			hash ^= (hash >> 2) + (hash << 5) + *pch;
+		}
+		return hash;
+	}
+
+
+	unsigned int Hash2(char* pszString)
 	{
 		int i = 0;
 		unsigned int hash = 0x4E67C6A7;
