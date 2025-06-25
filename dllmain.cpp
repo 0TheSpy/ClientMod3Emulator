@@ -225,7 +225,7 @@ bool __fastcall Hooked_PrepareSteamConnectResponse(DWORD* ecx, void* edx, int ke
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x00, 0x00, 0x00,
 		0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 	};
-	msg.WriteBytes(staticEnd, sizeof(staticEnd));
+	//msg.WriteBytes(staticEnd, sizeof(staticEnd));
 
 	//hexDump(0, msg.m_pData, msg.GetNumBytesWritten()); 
 	return true;
